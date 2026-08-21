@@ -10,6 +10,9 @@ This is a **local MVP prototype** of a pharmacy-triggered nutrient-depletion rec
 
 - Python 3.11+
 - FastAPI (API layer)
+- SQLAlchemy + SQLite (clinical content storage)
+- Jinja2 + xhtml2pdf (printable companion page — HTML and PDF; xhtml2pdf was chosen over WeasyPrint because WeasyPrint needs native Pango/GObject libraries that aren't available in this dev environment)
+- httpx (outbound calls to USDA FoodData Central)
 - pytest + httpx (`TestClient`) for tests
 - `src/` layout, packaged as `mind_recovery_mvp`, built with setuptools via `pyproject.toml`
 
@@ -40,7 +43,17 @@ Run a single test: `pytest tests/test_health.py::test_health`
 
 ## Architecture
 
-- `src/mind_recovery_mvp/main.py` — FastAPI app instance and route definitions. Currently just a health-check endpoint; this is the entry point for `uvicorn`.
-- `tests/` — pytest suite, uses FastAPI's `TestClient` against the `app` object directly (no live server needed to run tests).
+- `src/mind_recovery_mvp/main.py` — FastAPI app instance, lifespan hook (DB init + seed load), and all routes. Entry point for `uvicorn`.
+- `src/mind_recovery_mvp/models.py` — `NutrientContent` SQLAlchemy model (one row per medication class).
+- `src/mind_recovery_mvp/seed_data.py` — the verbatim clinical content for the four seeded medication classes (metformin, statins, diuretics, ppi). This is the single source of truth for clinical content; null fields there are intentional (content not yet drafted/cited by a pharmacist) and must stay null, never filled in with invented text.
+- `src/mind_recovery_mvp/loader.py` — idempotent seeding of `seed_data.py` into the DB, run on startup.
+- `src/mind_recovery_mvp/db.py` — SQLAlchemy engine/session setup and the `get_db` FastAPI dependency.
+- `src/mind_recovery_mvp/schemas.py` — Pydantic request/response models.
+- `src/mind_recovery_mvp/usda.py` — optional USDA FoodData Central enrichment for `foods_that_may_help`, gated on the `FDC_API_KEY` env var. Every failure mode (missing key, timeout, HTTP error, malformed response) is caught per-food and degrades to `None` rather than raising — this must never block `/fill-event` from responding.
+- `src/mind_recovery_mvp/companion_page.py` + `src/mind_recovery_mvp/templates/companion_page.html` — renders the printable companion page (single Jinja2 template drives both the HTML and PDF endpoints, so there's one source of truth for the markup). Any null clinical field renders as a visible "Pending pharmacist review" callout, never blank.
+- `tests/conftest.py` — shared `client` fixture: a `TestClient` wired to an isolated temp-file SQLite DB (via `app.dependency_overrides[get_db]`), pre-loaded with the seed data. Used by most test modules instead of hitting the real app DB file.
+- `tests/` — pytest suite, uses FastAPI's `TestClient` against the `app` object directly (no live server needed to run tests). External calls (USDA) are mocked in tests — never hit the real API in the test suite.
 
-The project is at skeleton stage: no domain logic (medication classes, nutrient-depletion rules, recommendation engine) has been implemented yet.
+## Known dev-environment quirk
+
+In some sandboxed shells, `pip install -e .` editable installs are not picked up by fresh Python processes (the `.pth` file exists and is correct, but isn't processed) — `pytest`/`uvicorn` then fail with `ModuleNotFoundError: No module named 'mind_recovery_mvp'` even though `pip show` confirms the install. If this happens, run with `PYTHONPATH=src` prefixed (e.g. `PYTHONPATH=src pytest`, `PYTHONPATH=src uvicorn mind_recovery_mvp.main:app --reload`). This is specific to that shell environment, not a project misconfiguration — a normal terminal does not need this workaround.

@@ -12,6 +12,8 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "sqlalchemy>=2.0",
     "httpx>=0.27",
+    "jinja2>=3.1",
+    "xhtml2pdf>=0.2.14",
 ]
 
 [project.optional-dependencies]
@@ -21,3 +23,6 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+mind_recovery_mvp = ["templates/*.html"]

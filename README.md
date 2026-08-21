@@ -23,3 +23,16 @@ Health check: `GET http://127.0.0.1:8000/health`
 ```bash
 pytest
 ```
+
+## Demo
+
+Single command to see the whole MVP flow end to end — fires `/fill-event` for
+all four medication classes, downloads each companion-page PDF into
+`./output/`, and prints a summary table:
+
+```bash
+python scripts/demo.py
+```
+
+It starts its own throwaway server on a free port with a scratch database, so
+there's no need to have `uvicorn` already running.

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./mind_recovery.db")
 
@@ -20,3 +21,8 @@ class Base(DeclarativeBase):
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+
+
+def get_db() -> Iterator[Session]:
+    with SessionLocal() as session:
+        yield session

@@ -2,6 +2,7 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
@@ -26,6 +27,11 @@ from mind_recovery_mvp.schemas import (
 )
 from mind_recovery_mvp.usda import enrich_foods
 
+# Loads a repo-root .env file (if present) into the environment. Called at
+# import time so FDC_API_KEY is available before the startup check below,
+# regardless of whether the process's cwd is the repo root.
+load_dotenv()
+
 SUPPORTED_CLASSES_MESSAGE = "Supported classes: metformin, statins, diuretics, ppi."
 
 
@@ -48,6 +54,16 @@ def _get_record_or_404(medication_class: str, db: Session) -> NutrientContent:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    if not os.environ.get("FDC_API_KEY"):
+        raise RuntimeError(
+            "FDC_API_KEY is not set. This server enriches "
+            "foods_that_may_help with real USDA FoodData Central lookups "
+            "on every /fill-event call, so a key is required to start. "
+            "Get a free key at https://fdc.nal.usda.gov/api-key-signup "
+            "and set FDC_API_KEY=<your-key> in a .env file at the repo "
+            "root (or as an environment variable) before starting the "
+            "server."
+        )
     init_db()
     with SessionLocal() as session:
         load_seed_data(session)
@@ -67,15 +83,15 @@ def fill_event(payload: FillEventRequest, db: Session = Depends(get_db)) -> dict
     record = _get_record_or_404(payload.medication_class, db)
     record_fill_event(db, record.medication_class)
 
-    api_key = os.environ.get("FDC_API_KEY")
-    food_nutrients = enrich_foods(record.foods_that_may_help, api_key)
+    # Guaranteed present: lifespan fails fast at startup otherwise.
+    api_key = os.environ["FDC_API_KEY"]
+    enriched_foods = enrich_foods(record.foods_that_may_help, api_key)
 
     return {
         **NutrientContentResponse.model_validate(record).model_dump(),
         "recommendation": {
-            "foods_that_may_help": record.foods_that_may_help,
+            "foods_that_may_help": enriched_foods,
             "supplements_to_discuss": record.supplements_to_discuss,
-            "food_nutrients": food_nutrients,
         },
     }
 

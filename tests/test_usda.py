@@ -39,6 +39,12 @@ def test_lookup_food_nutrients_success() -> None:
         result = lookup_food_nutrients("eggs", "test-key")
 
     mock_get.assert_called_once()
+    call_kwargs = mock_get.call_args.kwargs
+    assert call_kwargs["params"]["query"] == "eggs"
+    assert call_kwargs["params"]["api_key"] == "test-key"
+    # Restricts to whole-food entries so a branded product with a matching
+    # name (e.g. a candy bar called "Eggs") can't outrank actual eggs.
+    assert call_kwargs["params"]["dataType"] == "Foundation,SR Legacy"
     assert result == {
         "fdc_id": 123456,
         "description": "Egg, whole, raw, fresh",
@@ -76,29 +82,28 @@ def test_lookup_food_nutrients_network_error_returns_none() -> None:
     assert result is None
 
 
-def test_enrich_foods_without_api_key_returns_none() -> None:
-    assert enrich_foods(["eggs", "dairy"], None) is None
-
-
 def test_enrich_foods_without_foods_returns_none() -> None:
     assert enrich_foods(None, "test-key") is None
     assert enrich_foods([], "test-key") is None
 
 
-def test_enrich_foods_with_api_key_looks_up_each_food() -> None:
+def test_enrich_foods_looks_up_each_food() -> None:
     with patch(
         "mind_recovery_mvp.usda.lookup_food_nutrients",
         side_effect=lambda food, key: {"fdc_id": 1, "description": food, "nutrients": []},
     ):
         result = enrich_foods(["eggs", "dairy"], "test-key")
 
-    assert result == {
-        "eggs": {"fdc_id": 1, "description": "eggs", "nutrients": []},
-        "dairy": {"fdc_id": 1, "description": "dairy", "nutrients": []},
-    }
+    assert result == [
+        {"food": "eggs", "nutrients": {"fdc_id": 1, "description": "eggs", "nutrients": []}},
+        {"food": "dairy", "nutrients": {"fdc_id": 1, "description": "dairy", "nutrients": []}},
+    ]
 
 
-def test_enrich_foods_skips_failed_lookups() -> None:
+def test_enrich_foods_falls_back_to_plain_name_on_failed_lookup() -> None:
+    # A single failed USDA lookup (timeout, rate limit, 5xx, ...) must not
+    # drop the food or fail the whole call — it falls back to the plain
+    # food name with nutrients=None.
     with patch(
         "mind_recovery_mvp.usda.lookup_food_nutrients",
         side_effect=lambda food, key: None if food == "dairy" else {
@@ -107,4 +112,7 @@ def test_enrich_foods_skips_failed_lookups() -> None:
     ):
         result = enrich_foods(["eggs", "dairy"], "test-key")
 
-    assert result == {"eggs": {"fdc_id": 1, "description": "eggs", "nutrients": []}}
+    assert result == [
+        {"food": "eggs", "nutrients": {"fdc_id": 1, "description": "eggs", "nutrients": []}},
+        {"food": "dairy", "nutrients": None},
+    ]

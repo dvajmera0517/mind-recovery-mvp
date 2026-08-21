@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
+from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "src"
@@ -27,6 +28,12 @@ OUTPUT_DIR = Path.cwd() / "output"
 MEDICATION_CLASSES = ["metformin", "statins", "diuretics", "ppi"]
 SERVER_STARTUP_TIMEOUT_SECONDS = 15
 CONTENT_STATUS_DISPLAY_WIDTH = 50
+# USDA's public, rate-limited testing key. Used only as a fallback when no
+# FDC_API_KEY is configured, so this demo runs out of the box. Get a real
+# key: https://fdc.nal.usda.gov/api-key-signup
+USDA_DEMO_KEY = "DEMO_KEY"
+
+load_dotenv(REPO_ROOT / ".env")
 
 
 @dataclass
@@ -43,10 +50,18 @@ def _find_free_port() -> int:
         return sock.getsockname()[1]
 
 
-def _wait_for_health(client: httpx.Client, timeout: float) -> None:
+def _wait_for_health(
+    client: httpx.Client, server: subprocess.Popen, timeout: float
+) -> None:
     deadline = time.monotonic() + timeout
     last_error: Exception | None = None
     while time.monotonic() < deadline:
+        if server.poll() is not None:
+            output = server.stdout.read() if server.stdout is not None else ""
+            raise RuntimeError(
+                f"Server process exited early (code {server.returncode}) "
+                f"during startup:\n{output}"
+            )
         try:
             response = client.get("/health", timeout=2)
             if response.status_code == 200:
@@ -64,6 +79,15 @@ def _start_server(port: int) -> subprocess.Popen:
     demo_db_path = OUTPUT_DIR / "demo.db"
     demo_db_path.unlink(missing_ok=True)
     env["DATABASE_URL"] = f"sqlite:///{demo_db_path}"
+    # The server fails fast at startup without FDC_API_KEY. Fall back to
+    # USDA's public demo key so this script still runs with zero setup.
+    if not env.get("FDC_API_KEY"):
+        print(
+            "No FDC_API_KEY found (env var or .env) — using USDA's public "
+            "DEMO_KEY (rate-limited). Get your own free key: "
+            "https://fdc.nal.usda.gov/api-key-signup"
+        )
+        env["FDC_API_KEY"] = USDA_DEMO_KEY
     # Belt-and-suspenders: some shells don't pick up editable installs
     # reliably, so make sure the subprocess can import the package
     # regardless.
@@ -167,7 +191,7 @@ def main() -> int:
 
     try:
         with httpx.Client(base_url=base_url) as client:
-            _wait_for_health(client, SERVER_STARTUP_TIMEOUT_SECONDS)
+            _wait_for_health(client, server, SERVER_STARTUP_TIMEOUT_SECONDS)
             print("Server is up. Running fill-event + companion-page for each class...")
             for medication_class in MEDICATION_CLASSES:
                 results.append(_run_one(client, medication_class))

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Iterator
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +13,41 @@ from sqlalchemy.orm import Session, sessionmaker
 from mind_recovery_mvp.db import Base, get_db
 from mind_recovery_mvp.loader import load_seed_data
 from mind_recovery_mvp.main import app
+
+# Sentinel used as FDC_API_KEY for every test except ones marked
+# @pytest.mark.integration. Not a real key — tests/test_usda_integration.py
+# checks for this exact value to know no real key is configured and falls
+# back to USDA's public DEMO_KEY.
+PYTEST_PLACEHOLDER_API_KEY = "pytest-placeholder-not-a-real-fdc-key"
+
+FAKE_USDA_LOOKUP_RESULT = {
+    "fdc_id": 999999,
+    "description": "Test Food, generic",
+    "nutrients": [{"name": "Protein", "amount": 1.0, "unit": "G"}],
+}
+
+
+@pytest.fixture(autouse=True)
+def _isolate_external_dependencies(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[None]:
+    """Keep the default test run fast and offline.
+
+    Every test gets a placeholder FDC_API_KEY and a mocked USDA lookup, so
+    nothing in the default run touches the real network. Tests marked
+    @pytest.mark.integration are left untouched on purpose, so they can
+    exercise the real key/API.
+    """
+    if "integration" in request.keywords:
+        yield
+        return
+
+    monkeypatch.setenv("FDC_API_KEY", PYTEST_PLACEHOLDER_API_KEY)
+    with patch(
+        "mind_recovery_mvp.usda.lookup_food_nutrients",
+        return_value=FAKE_USDA_LOOKUP_RESULT,
+    ):
+        yield
 
 
 @pytest.fixture(scope="module")

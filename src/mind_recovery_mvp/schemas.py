@@ -34,10 +34,14 @@ class FoodNutrientLookup(BaseModel):
     nutrients: list[FoodNutrient]
 
 
+class EnrichedFood(BaseModel):
+    food: str
+    nutrients: FoodNutrientLookup | None = None
+
+
 class Recommendation(BaseModel):
-    foods_that_may_help: list[str] | None
+    foods_that_may_help: list[EnrichedFood] | None
     supplements_to_discuss: list[str] | None
-    food_nutrients: dict[str, FoodNutrientLookup] | None = None
 
 
 class FillEventResponse(NutrientContentResponse):

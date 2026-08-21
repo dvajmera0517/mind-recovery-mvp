@@ -11,11 +11,17 @@ from mind_recovery_mvp.companion_page import (
     render_companion_page_pdf,
 )
 from mind_recovery_mvp.db import SessionLocal, get_db, init_db
+from mind_recovery_mvp.event_log import (
+    get_metrics,
+    mark_companion_page_requested,
+    record_fill_event,
+)
 from mind_recovery_mvp.loader import load_seed_data
 from mind_recovery_mvp.models import NutrientContent
 from mind_recovery_mvp.schemas import (
     FillEventRequest,
     FillEventResponse,
+    MetricsResponse,
     NutrientContentResponse,
 )
 from mind_recovery_mvp.usda import enrich_foods
@@ -59,6 +65,7 @@ def health() -> dict[str, str]:
 @app.post("/fill-event", response_model=FillEventResponse)
 def fill_event(payload: FillEventRequest, db: Session = Depends(get_db)) -> dict:
     record = _get_record_or_404(payload.medication_class, db)
+    record_fill_event(db, record.medication_class)
 
     api_key = os.environ.get("FDC_API_KEY")
     food_nutrients = enrich_foods(record.foods_that_may_help, api_key)
@@ -78,6 +85,7 @@ def fill_event(payload: FillEventRequest, db: Session = Depends(get_db)) -> dict
 @app.get("/companion-page/{medication_class}.pdf")
 def companion_page_pdf(medication_class: str, db: Session = Depends(get_db)) -> Response:
     record = _get_record_or_404(medication_class, db)
+    mark_companion_page_requested(db, medication_class)
     pdf_bytes = render_companion_page_pdf(record)
     return Response(
         content=pdf_bytes,
@@ -93,4 +101,10 @@ def companion_page_pdf(medication_class: str, db: Session = Depends(get_db)) -> 
 @app.get("/companion-page/{medication_class}", response_class=HTMLResponse)
 def companion_page_html(medication_class: str, db: Session = Depends(get_db)) -> str:
     record = _get_record_or_404(medication_class, db)
+    mark_companion_page_requested(db, medication_class)
     return render_companion_page_html(record)
+
+
+@app.get("/metrics", response_model=MetricsResponse)
+def metrics(db: Session = Depends(get_db)) -> dict:
+    return get_metrics(db)

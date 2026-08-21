@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -40,3 +42,20 @@ class Recommendation(BaseModel):
 
 class FillEventResponse(NutrientContentResponse):
     recommendation: Recommendation
+
+
+class MedicationClassMetrics(BaseModel):
+    medication_class: str
+    fill_event_count: int
+    companion_page_count: int
+    companion_page_rate: float | None
+
+
+class MetricsResponse(BaseModel):
+    generated_at: datetime
+    note: str = (
+        "Stand-in for engagement/purchase-lift measurement. Counts "
+        "/fill-event calls and subsequent companion-page requests only "
+        "— not real purchases or clinical outcomes."
+    )
+    medication_classes: list[MedicationClassMetrics]

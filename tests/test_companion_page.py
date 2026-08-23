@@ -45,19 +45,21 @@ def test_companion_page_html_ppi_shows_pending_for_null_fields(
     assert body.count("Pending pharmacist review") == 5
 
 
-def test_companion_page_html_statins_shows_pending_only_for_null_fields(
+def test_companion_page_html_statins_placeholder_hides_all_fields(
     client: TestClient,
 ) -> None:
+    # statins is still content_status PLACEHOLDER, so even though
+    # supplements_to_discuss is populated in the seed data, the render
+    # gate hides it along with everything else — a placeholder record
+    # never shows real content, regardless of which individual fields
+    # happen to be filled in.
     response = client.get("/companion-page/statins")
     assert response.status_code == 200
     body = response.text
 
     assert "CoQ10 association" in body
-    assert "CoQ10 supplements — confirm appropriateness with pharmacist" in body
-    # why_it_matters, foods_that_may_help, talk_to_pharmacist_if, and
-    # clinical_source are null; supplements_to_discuss and nutrient_concern
-    # are populated.
-    assert body.count("Pending pharmacist review") == 4
+    assert "CoQ10 supplements — confirm appropriateness with pharmacist" not in body
+    assert body.count("Pending pharmacist review") == 5
 
 
 def test_companion_page_html_unknown_class_returns_404(client: TestClient) -> None:

@@ -21,6 +21,15 @@ class NutrientContent(Base):
     talk_to_pharmacist_if: Mapped[str | None] = mapped_column(String, nullable=True)
     clinical_source: Mapped[str | None] = mapped_column(String, nullable=True)
 
+    # Set by scripts/draft_content.py: the source excerpt the LLM draft was
+    # generated from, so a reviewer can see what it was drafted from.
+    evidence_excerpt: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Set by scripts/review_content.py on approval.
+    reviewed_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
 
 class FillEventLog(Base):
     """One row per /fill-event call.

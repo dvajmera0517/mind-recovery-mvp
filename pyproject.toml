@@ -15,6 +15,7 @@ dependencies = [
     "jinja2>=3.1",
     "xhtml2pdf>=0.2.14",
     "python-dotenv>=1.0",
+    "anthropic>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +31,6 @@ mind_recovery_mvp = ["templates/*.html"]
 
 [tool.pytest.ini_options]
 markers = [
-    "integration: hits real external services (USDA FoodData Central). Excluded by default; run explicitly with `pytest -m integration`.",
+    "integration: hits real external services (USDA FoodData Central, RxClass, openFDA, Claude). Excluded by default; run explicitly with `pytest -m integration`.",
 ]
 addopts = "-m 'not integration'"

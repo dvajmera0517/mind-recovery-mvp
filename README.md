@@ -33,6 +33,26 @@ wired into an endpoint yet.
 None of RxClass/openFDA/`OPENFDA_API_KEY` are required to start the server —
 only `FDC_API_KEY` is.
 
+## LLM-assisted content drafting (statins, diuretics, PPIs)
+
+Three of the four medication classes are still placeholders (see the table
+below). `scripts/draft_content.py` uses Claude to draft their missing fields
+from a fixed, short evidence excerpt (`src/mind_recovery_mvp/evidence_excerpts.py`)
+— never from general model knowledge. It never marks anything "approved":
+output is stored as `content_status = "llm_drafted_pending_pharmacist_review"`,
+and the companion page keeps showing "Pending pharmacist review" for that
+record regardless of what's now in the database, until a human reviews it.
+
+```bash
+python scripts/draft_content.py statins    # or diuretics / ppi
+python scripts/review_content.py           # approve, edit, or skip each draft
+```
+
+Set `ANTHROPIC_API_KEY` in `.env` (get one at
+https://console.anthropic.com/settings/keys) — only `draft_content.py` needs
+it; the main server doesn't. `review_content.py` needs no API key, just a
+`REVIEWER_NAME` env var (or it'll prompt you).
+
 ## Run
 
 ```bash
@@ -47,12 +67,15 @@ Health check: `GET http://127.0.0.1:8000/health`
 pytest
 ```
 
-This is fully offline (USDA/RxClass/openFDA calls are mocked). To run the
-three tests that hit the real APIs:
+This is fully offline (USDA/RxClass/openFDA/Claude calls are mocked). To run
+the four tests that hit the real APIs:
 
 ```bash
-FDC_API_KEY=<your-key> pytest -m integration
+FDC_API_KEY=<your-key> ANTHROPIC_API_KEY=<your-key> pytest -m integration
 ```
+
+(the Claude one skips itself with a message if `ANTHROPIC_API_KEY` isn't set
+— there's no free/no-signup key for it the way USDA has `DEMO_KEY`)
 
 ## Demo
 
@@ -89,3 +112,10 @@ goes near a real pilot store, statins, diuretics, and PPIs need a
 pharmacist/dietitian to draft and cite the missing fields, and metformin
 needs its citation replaced with a real, verifiable reference and formal
 sign-off.
+
+This table reflects the data as originally seeded. Running
+`scripts/draft_content.py` + `scripts/review_content.py` (see above) moves a
+class from `PLACEHOLDER` to `llm_drafted_pending_pharmacist_review` and then
+to `approved`/`approved_with_edits` — but the companion page still shows
+"Pending pharmacist review" for everything up through the drafted state,
+regardless of what's actually in the database by then.

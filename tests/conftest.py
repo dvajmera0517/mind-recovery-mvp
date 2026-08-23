@@ -79,8 +79,13 @@ def client() -> Iterator[TestClient]:
             yield session
 
     app.dependency_overrides[get_db] = override_get_db
+    test_client = TestClient(app)
+    # Exposes the same session factory the app's dependency override uses,
+    # so tests can set up DB state (e.g. content_status) directly instead
+    # of only being able to reach it through the API.
+    test_client.db_session_factory = TestSessionLocal  # type: ignore[attr-defined]
     try:
-        yield TestClient(app)
+        yield test_client
     finally:
         app.dependency_overrides.pop(get_db, None)
         engine.dispose()

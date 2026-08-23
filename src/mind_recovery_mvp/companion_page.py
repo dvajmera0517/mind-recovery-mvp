@@ -6,6 +6,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from xhtml2pdf import pisa
 
+from mind_recovery_mvp.content_review import is_customer_visible
 from mind_recovery_mvp.models import NutrientContent
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -27,16 +28,24 @@ _env = Environment(
 
 def render_companion_page_html(record: NutrientContent) -> str:
     template = _env.get_template("companion_page.html")
+    # Gate on content_status, not on whether fields happen to be
+    # populated: an LLM draft or a partially-seeded placeholder must
+    # never render as real content until a pharmacist has approved it.
+    show_content = is_customer_visible(record.content_status)
     return template.render(
         medication=MEDICATION_DISPLAY_NAMES.get(
             record.medication_class, record.medication_class
         ),
         nutrient_concern=record.nutrient_concern,
-        why_it_matters=record.why_it_matters,
-        foods_that_may_help=record.foods_that_may_help,
-        supplements_to_discuss=record.supplements_to_discuss,
-        talk_to_pharmacist_if=record.talk_to_pharmacist_if,
-        clinical_source=record.clinical_source,
+        why_it_matters=record.why_it_matters if show_content else None,
+        foods_that_may_help=record.foods_that_may_help if show_content else None,
+        supplements_to_discuss=(
+            record.supplements_to_discuss if show_content else None
+        ),
+        talk_to_pharmacist_if=(
+            record.talk_to_pharmacist_if if show_content else None
+        ),
+        clinical_source=record.clinical_source if show_content else None,
         pending_text=PENDING_TEXT,
     )
 

@@ -19,6 +19,7 @@ from mind_recovery_mvp.event_log import (
 )
 from mind_recovery_mvp.loader import load_seed_data
 from mind_recovery_mvp.models import NutrientContent
+from mind_recovery_mvp import openfda
 from mind_recovery_mvp.schemas import (
     FillEventRequest,
     FillEventResponse,
@@ -86,6 +87,7 @@ def fill_event(payload: FillEventRequest, db: Session = Depends(get_db)) -> dict
     # Guaranteed present: lifespan fails fast at startup otherwise.
     api_key = os.environ["FDC_API_KEY"]
     enriched_foods = enrich_foods(record.foods_that_may_help, api_key)
+    fda_label_reference = openfda.get_fda_label_reference(record.medication_class)
 
     return {
         **NutrientContentResponse.model_validate(record).model_dump(),
@@ -93,6 +95,7 @@ def fill_event(payload: FillEventRequest, db: Session = Depends(get_db)) -> dict
             "foods_that_may_help": enriched_foods,
             "supplements_to_discuss": record.supplements_to_discuss,
         },
+        "fda_label_reference": fda_label_reference,
     }
 
 

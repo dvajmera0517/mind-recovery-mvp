@@ -44,8 +44,16 @@ class Recommendation(BaseModel):
     supplements_to_discuss: list[str] | None
 
 
+class FdaLabelReference(BaseModel):
+    label: str = "FDA label reference"
+    source_drug: str | None
+    drug_interactions: str | None
+    warnings_and_cautions: str | None
+
+
 class FillEventResponse(NutrientContentResponse):
     recommendation: Recommendation
+    fda_label_reference: FdaLabelReference | None
 
 
 class MedicationClassMetrics(BaseModel):

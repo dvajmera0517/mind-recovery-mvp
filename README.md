@@ -17,6 +17,22 @@ no signup) to try things out. The server enriches `foods_that_may_help` with a
 real, live USDA lookup on every `/fill-event` call, so it **fails fast at
 startup** if this isn't set.
 
+`/fill-event` also makes a real, live call to
+[openFDA](https://api.fda.gov/drug/label.json) on every request, attaching
+`drug_interactions` and `warnings_and_cautions` from the official FDA label
+as `fda_label_reference` — separate from the pharmacist-curated
+`recommendation`. No key needed; optionally set `OPENFDA_API_KEY` in `.env`
+to raise its rate limit.
+
+Separately, `src/mind_recovery_mvp/rxclass.py` provides
+`classify_medication_class(drug_name)`, a helper that looks up a drug's
+therapeutic class via [RxClass](https://rxnav.nlm.nih.gov/REST/rxclass) (NLM
+— no key needed) and maps it to one of the four target classes. It's not
+wired into an endpoint yet.
+
+None of RxClass/openFDA/`OPENFDA_API_KEY` are required to start the server —
+only `FDC_API_KEY` is.
+
 ## Run
 
 ```bash
@@ -31,8 +47,8 @@ Health check: `GET http://127.0.0.1:8000/health`
 pytest
 ```
 
-This is fully offline (USDA calls are mocked). To run the one test that hits
-the real USDA API:
+This is fully offline (USDA/RxClass/openFDA calls are mocked). To run the
+three tests that hit the real APIs:
 
 ```bash
 FDC_API_KEY=<your-key> pytest -m integration

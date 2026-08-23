@@ -26,6 +26,13 @@ FAKE_USDA_LOOKUP_RESULT = {
     "nutrients": [{"name": "Protein", "amount": 1.0, "unit": "G"}],
 }
 
+FAKE_FDA_LABEL_REFERENCE = {
+    "label": "FDA label reference",
+    "source_drug": "Test Drug",
+    "drug_interactions": "Test drug interactions text.",
+    "warnings_and_cautions": "Test warnings and cautions text.",
+}
+
 
 @pytest.fixture(autouse=True)
 def _isolate_external_dependencies(
@@ -33,19 +40,25 @@ def _isolate_external_dependencies(
 ) -> Iterator[None]:
     """Keep the default test run fast and offline.
 
-    Every test gets a placeholder FDC_API_KEY and a mocked USDA lookup, so
-    nothing in the default run touches the real network. Tests marked
-    @pytest.mark.integration are left untouched on purpose, so they can
-    exercise the real key/API.
+    Every test gets a placeholder FDC_API_KEY and mocked USDA/openFDA
+    lookups, so nothing in the default run touches the real network.
+    Tests marked @pytest.mark.integration are left untouched on purpose,
+    so they can exercise the real keys/APIs.
     """
     if "integration" in request.keywords:
         yield
         return
 
     monkeypatch.setenv("FDC_API_KEY", PYTEST_PLACEHOLDER_API_KEY)
-    with patch(
-        "mind_recovery_mvp.usda.lookup_food_nutrients",
-        return_value=FAKE_USDA_LOOKUP_RESULT,
+    with (
+        patch(
+            "mind_recovery_mvp.usda.lookup_food_nutrients",
+            return_value=FAKE_USDA_LOOKUP_RESULT,
+        ),
+        patch(
+            "mind_recovery_mvp.openfda.get_fda_label_reference",
+            return_value=FAKE_FDA_LABEL_REFERENCE,
+        ),
     ):
         yield
 

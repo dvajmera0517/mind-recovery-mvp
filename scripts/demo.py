@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """End-to-end MVP demo.
 
-Starts a throwaway server, fires /fill-event for all four seeded medication
-classes in sequence, downloads each companion-page PDF into ./output, and
+Starts a throwaway server, fires /fill-event for every seeded medication
+class in sequence, downloads each companion-page PDF into ./output, and
 prints a summary table. This is the single command to see the whole MVP
 flow work end to end:
 
@@ -24,8 +24,15 @@ from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from mind_recovery_mvp.seed_data import NUTRIENT_CONTENT_SEED  # noqa: E402
+
 OUTPUT_DIR = Path.cwd() / "output"
-MEDICATION_CLASSES = ["metformin", "statins", "diuretics", "ppi"]
+# Derived from seed_data.py rather than hardcoded, so adding/removing a
+# medication class there doesn't also require remembering to update this.
+MEDICATION_CLASSES = [record["medication_class"] for record in NUTRIENT_CONTENT_SEED]
 SERVER_STARTUP_TIMEOUT_SECONDS = 15
 CONTENT_STATUS_DISPLAY_WIDTH = 50
 # USDA's public, rate-limited testing key. Used only as a fallback when no

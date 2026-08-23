@@ -1,7 +1,7 @@
 """RxClass (NLM) drug classification lookup.
 
 Real, live call against https://rxnav.nlm.nih.gov/REST/rxclass — no API key
-or license required. Maps a drug name to one of our four target medication
+or license required. Maps a drug name to one of our target medication
 classes via its therapeutic classification.
 """
 
@@ -28,16 +28,17 @@ CLASS_KEYWORDS: dict[str, tuple[str, ...]] = {
     "statins": ("statin", "hmg-coa reductase inhibitor"),
     "diuretics": ("diuretic",),
     "ppi": ("proton pump inhibitor",),
+    "glp1": ("glp-1 receptor agonist",),
 }
 
 
 def classify_medication_class(drug_name: str) -> str | None:
     """Look up drug_name's therapeutic class via RxClass's
     getClassByRxNormDrugName operation and map it to one of
-    metformin/statins/diuretics/ppi.
+    metformin/statins/diuretics/ppi/glp1.
 
     Returns None if the live lookup fails, or if the drug doesn't map to
-    any of the four target classes.
+    any of the target classes.
     """
     try:
         response = httpx.get(

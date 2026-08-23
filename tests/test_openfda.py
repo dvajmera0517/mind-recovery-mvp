@@ -57,6 +57,23 @@ def test_get_fda_label_reference_uses_epc_query_for_class_names() -> None:
     )
 
 
+def test_get_fda_label_reference_uses_epc_query_for_glp1() -> None:
+    # Verified live: openfda.pharm_class_epc:"GLP-1 Receptor Agonist [EPC]"
+    # matches liraglutide's real FDA label.
+    with patch(
+        "mind_recovery_mvp.openfda.httpx.get",
+        return_value=_mock_response(
+            [{"openfda": {}, "drug_interactions": [], "warnings_and_cautions": []}]
+        ),
+    ) as mock_get:
+        get_fda_label_reference("glp1")
+
+    assert (
+        mock_get.call_args.kwargs["params"]["search"]
+        == 'openfda.pharm_class_epc:"GLP-1 Receptor Agonist [EPC]"'
+    )
+
+
 def test_get_fda_label_reference_falls_back_to_warnings_field() -> None:
     # Real-world case (furosemide): some labels use the older "warnings"
     # section instead of "warnings_and_cautions".

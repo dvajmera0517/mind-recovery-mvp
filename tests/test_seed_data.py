@@ -19,8 +19,9 @@ def test_seed_data_loads_all_records_including_nulls() -> None:
             for record in session.query(NutrientContent).all()
         }
 
-    assert len(records) == 4
-    assert set(records) == {"metformin", "statins", "diuretics", "ppi"}
+    expected_classes = {record["medication_class"] for record in NUTRIENT_CONTENT_SEED}
+    assert len(records) == len(NUTRIENT_CONTENT_SEED)
+    assert set(records) == expected_classes
 
     for expected in NUTRIENT_CONTENT_SEED:
         actual = records[expected["medication_class"]]

@@ -1,6 +1,6 @@
 # mind-recovery-mvp
 
-This is a local MVP prototype of a pharmacy-triggered nutrient-depletion recommendation engine, covering four medication classes (metformin, statins, diuretics, PPIs). It is not connected to any real pharmacy system or patient data.
+This is a local MVP prototype of a pharmacy-triggered nutrient-depletion recommendation engine, covering five medication classes (metformin, statins, diuretics, PPIs, GLP-1 agonists). It is not connected to any real pharmacy system or patient data.
 
 ## Setup
 
@@ -27,7 +27,7 @@ to raise its rate limit.
 Separately, `src/mind_recovery_mvp/rxclass.py` provides
 `classify_medication_class(drug_name)`, a helper that looks up a drug's
 therapeutic class via [RxClass](https://rxnav.nlm.nih.gov/REST/rxclass) (NLM
-— no key needed) and maps it to one of the four target classes. It's not
+— no key needed) and maps it to one of the five target classes. It's not
 wired into an endpoint yet.
 
 None of RxClass/openFDA/`OPENFDA_API_KEY` are required to start the server —
@@ -35,13 +35,16 @@ only `FDC_API_KEY` is.
 
 ## LLM-assisted content drafting (statins, diuretics, PPIs)
 
-Three of the four medication classes are still placeholders (see the table
-below). `scripts/draft_content.py` uses Claude to draft their missing fields
-from a fixed, short evidence excerpt (`src/mind_recovery_mvp/evidence_excerpts.py`)
-— never from general model knowledge. It never marks anything "approved":
-output is stored as `content_status = "llm_drafted_pending_pharmacist_review"`,
-and the companion page keeps showing "Pending pharmacist review" for that
-record regardless of what's now in the database, until a human reviews it.
+Four of the five medication classes are still placeholders (see the table
+below) — glp1 was added later and has no evidence excerpt yet, so it isn't
+draftable through this workflow either (`scripts/draft_content.py` only
+accepts statins/diuretics/ppi). `scripts/draft_content.py` uses Claude to
+draft their missing fields from a fixed, short evidence excerpt
+(`src/mind_recovery_mvp/evidence_excerpts.py`) — never from general model
+knowledge. It never marks anything "approved": output is stored as
+`content_status = "llm_drafted_pending_pharmacist_review"`, and the
+companion page keeps showing "Pending pharmacist review" for that record
+regardless of what's now in the database, until a human reviews it.
 
 ```bash
 python scripts/draft_content.py statins    # or diuretics / ppi
@@ -68,7 +71,7 @@ pytest
 ```
 
 This is fully offline (USDA/RxClass/openFDA/Claude calls are mocked). To run
-the four tests that hit the real APIs:
+the tests that hit the real APIs:
 
 ```bash
 FDC_API_KEY=<your-key> ANTHROPIC_API_KEY=<your-key> pytest -m integration
@@ -80,8 +83,8 @@ FDC_API_KEY=<your-key> ANTHROPIC_API_KEY=<your-key> pytest -m integration
 ## Demo
 
 Single command to see the whole MVP flow end to end — fires `/fill-event` for
-all four medication classes, downloads each companion-page PDF into
-`./output/`, and prints a summary table:
+every medication class in `seed_data.py`, downloads each companion-page PDF
+into `./output/`, and prints a summary table:
 
 ```bash
 python scripts/demo.py
@@ -94,7 +97,7 @@ it falls back to USDA's public `DEMO_KEY` automatically.
 ## What's real vs. placeholder
 
 The clinical content in `src/mind_recovery_mvp/seed_data.py` is **not**
-uniformly complete. Only one of the four medication classes has drafted
+uniformly complete. Only one of the five medication classes has drafted
 content for every field — and even that one isn't signed off yet. None of
 this is ready for a real pilot store without pharmacist/dietitian review.
 
@@ -104,11 +107,12 @@ this is ready for a real pilot store without pharmacist/dietitian review.
 | **statins** | PLACEHOLDER | `nutrient_concern` (CoQ10 association), `supplements_to_discuss` | `why_it_matters`, `foods_that_may_help`, `talk_to_pharmacist_if`, `clinical_source` |
 | **diuretics** | PLACEHOLDER | `nutrient_concern` (potassium/magnesium risk), `foods_that_may_help` | `why_it_matters`, `supplements_to_discuss`, `talk_to_pharmacist_if`, `clinical_source` |
 | **PPIs** | PLACEHOLDER | `nutrient_concern` only (magnesium, calcium, B12) | `why_it_matters`, `foods_that_may_help`, `supplements_to_discuss`, `talk_to_pharmacist_if`, `clinical_source` |
+| **glp1** | PLACEHOLDER — added as a 5th target class; nothing drafted or reviewed yet | `nutrient_concern` only (reduced overall intake — protein, B12, iron, D, thiamine) | `why_it_matters`, `foods_that_may_help`, `supplements_to_discuss`, `talk_to_pharmacist_if`, `clinical_source` |
 
 Every missing field renders as a visibly highlighted **"Pending pharmacist
 review"** callout on the companion page (`GET /companion-page/{class}` or
 `.pdf`) — never blank, never filled in with invented text. Before any of this
-goes near a real pilot store, statins, diuretics, and PPIs need a
+goes near a real pilot store, statins, diuretics, PPIs, and glp1 need a
 pharmacist/dietitian to draft and cite the missing fields, and metformin
 needs its citation replaced with a real, verifiable reference and formal
 sign-off.

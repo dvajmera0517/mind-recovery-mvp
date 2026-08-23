@@ -18,6 +18,7 @@ MEDICATION_DISPLAY_NAMES: dict[str, str] = {
     "statins": "Statins",
     "diuretics": "Diuretics",
     "ppi": "PPI",
+    "glp1": "GLP-1",
 }
 
 _env = Environment(

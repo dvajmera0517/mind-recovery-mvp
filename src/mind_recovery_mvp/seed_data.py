@@ -65,4 +65,18 @@ NUTRIENT_CONTENT_SEED: list[dict[str, Any]] = [
         "talk_to_pharmacist_if": None,
         "clinical_source": None,
     },
+    {
+        "medication_class": "glp1",
+        "content_status": "PLACEHOLDER — added as a 5th target class; nothing drafted or reviewed yet",
+        "nutrient_concern": (
+            "Reduced overall nutrient intake — protein, Vitamin B12, iron, "
+            "Vitamin D, and thiamine — due to appetite suppression and "
+            "delayed gastric emptying"
+        ),
+        "why_it_matters": None,
+        "foods_that_may_help": None,
+        "supplements_to_discuss": None,
+        "talk_to_pharmacist_if": None,
+        "clinical_source": None,
+    },
 ]

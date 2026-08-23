@@ -30,10 +30,10 @@ REQUEST_TIMEOUT_SECONDS = 5.0
 MAX_REFERENCE_TEXT_LENGTH = 1500
 
 # openFDA's generic_name field holds actual ingredient names, not class
-# names — "statins"/"diuretics"/"ppi" aren't queryable that way. For those
-# three, search by a representative drug's FDA Established Pharmacologic
-# Class instead (openfda.pharm_class_epc), the same EPC vocabulary
-# rxclass.py classifies drugs into.
+# names — "statins"/"diuretics"/"ppi"/"glp1" aren't queryable that way.
+# For those, search by a representative drug's FDA Established
+# Pharmacologic Class instead (openfda.pharm_class_epc), the same EPC
+# vocabulary rxclass.py classifies drugs into.
 #
 # metformin is itself a specific ingredient, so it's queried directly by
 # name — but as an *exact* match on the bare ingredient name, not a plain
@@ -45,6 +45,7 @@ SEARCH_QUERY_BY_MEDICATION_CLASS: dict[str, str] = {
     "statins": 'openfda.pharm_class_epc:"HMG-CoA Reductase Inhibitor [EPC]"',
     "diuretics": 'openfda.pharm_class_epc:"Loop Diuretic [EPC]"',
     "ppi": 'openfda.pharm_class_epc:"Proton Pump Inhibitor [EPC]"',
+    "glp1": 'openfda.pharm_class_epc:"GLP-1 Receptor Agonist [EPC]"',
 }
 
 

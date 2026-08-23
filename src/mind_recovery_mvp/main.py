@@ -26,6 +26,7 @@ from mind_recovery_mvp.schemas import (
     MetricsResponse,
     NutrientContentResponse,
 )
+from mind_recovery_mvp.seed_data import NUTRIENT_CONTENT_SEED
 from mind_recovery_mvp.usda import enrich_foods
 
 # Loads a repo-root .env file (if present) into the environment. Called at
@@ -33,7 +34,11 @@ from mind_recovery_mvp.usda import enrich_foods
 # regardless of whether the process's cwd is the repo root.
 load_dotenv()
 
-SUPPORTED_CLASSES_MESSAGE = "Supported classes: metformin, statins, diuretics, ppi."
+# Derived from seed_data.py rather than hardcoded, so adding/removing a
+# medication class there doesn't also require remembering to update this.
+SUPPORTED_CLASSES_MESSAGE = "Supported classes: " + ", ".join(
+    record["medication_class"] for record in NUTRIENT_CONTENT_SEED
+) + "."
 
 
 def _get_record_or_404(medication_class: str, db: Session) -> NutrientContent:

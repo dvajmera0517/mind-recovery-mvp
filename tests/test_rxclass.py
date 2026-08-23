@@ -96,6 +96,23 @@ def test_classify_medication_class_ppi() -> None:
     assert result == "ppi"
 
 
+def test_classify_medication_class_glp1() -> None:
+    # Real RxClass output confirmed live for semaglutide, liraglutide, and
+    # dulaglutide — all three give a consistent EPC -> "GLP-1 Receptor
+    # Agonist".
+    payload = [
+        ("MOA", "Glucagon-like Peptide-1 (GLP-1) Agonists"),
+        ("EPC", "GLP-1 Receptor Agonist"),
+        ("ATC1-4", "Glucagon-like peptide-1 (GLP-1) analogues"),
+    ]
+    with patch(
+        "mind_recovery_mvp.rxclass.httpx.get", return_value=_mock_response(payload)
+    ):
+        result = classify_medication_class("semaglutide")
+
+    assert result == "glp1"
+
+
 def test_classify_medication_class_unmapped_drug_returns_none() -> None:
     payload = [
         ("EPC", "Nonsteroidal Anti-inflammatory Drug"),

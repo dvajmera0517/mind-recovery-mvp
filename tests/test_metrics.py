@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from mind_recovery_mvp.seed_data import NUTRIENT_CONTENT_SEED
+
 # NOTE: tests in this file share one module-scoped db (see tests/conftest.py)
 # and each test's fill-event/companion-page calls accumulate in it, so
 # ordering matters: tests that need a medication_class untouched by prior
@@ -24,7 +26,7 @@ def test_metrics_starts_at_zero_for_all_seeded_classes(client: TestClient) -> No
     body = response.json()
 
     classes = {entry["medication_class"] for entry in body["medication_classes"]}
-    assert classes == {"metformin", "statins", "diuretics", "ppi"}
+    assert classes == {r["medication_class"] for r in NUTRIENT_CONTENT_SEED}
     for entry in body["medication_classes"]:
         assert entry["fill_event_count"] == 0
         assert entry["companion_page_count"] == 0

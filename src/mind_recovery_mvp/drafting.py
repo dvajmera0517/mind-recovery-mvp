@@ -1,6 +1,7 @@
-"""LLM-assisted content drafting for the three placeholder medication
-classes (statins, diuretics, ppi), from the fixed evidence excerpt in
-evidence_excerpts.py — a real, live Claude API call, not a stub.
+"""LLM-assisted content drafting for the placeholder medication classes
+that have an evidence excerpt (statins, diuretics, ppi, glp1 — see
+evidence_excerpts.py), from the fixed excerpt for that class — a real,
+live Claude API call, not a stub.
 
 Output is always stored with content_status =
 STATUS_LLM_DRAFTED_PENDING_REVIEW, never "approved" — see

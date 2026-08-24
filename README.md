@@ -33,21 +33,19 @@ wired into an endpoint yet.
 None of RxClass/openFDA/`OPENFDA_API_KEY` are required to start the server —
 only `FDC_API_KEY` is.
 
-## LLM-assisted content drafting (statins, diuretics, PPIs)
+## LLM-assisted content drafting (statins, diuretics, PPIs, GLP-1)
 
-Four of the five medication classes are still placeholders (see the table
-below) — glp1 was added later and has no evidence excerpt yet, so it isn't
-draftable through this workflow either (`scripts/draft_content.py` only
-accepts statins/diuretics/ppi). `scripts/draft_content.py` uses Claude to
-draft their missing fields from a fixed, short evidence excerpt
-(`src/mind_recovery_mvp/evidence_excerpts.py`) — never from general model
-knowledge. It never marks anything "approved": output is stored as
-`content_status = "llm_drafted_pending_pharmacist_review"`, and the
+All five medication classes have an evidence excerpt now (see
+`src/mind_recovery_mvp/evidence_excerpts.py`), so all four still-placeholder
+classes (see the table below) are draftable. `scripts/draft_content.py` uses
+Claude to draft their missing fields from that fixed, short excerpt — never
+from general model knowledge. It never marks anything "approved": output is
+stored as `content_status = "llm_drafted_pending_pharmacist_review"`, and the
 companion page keeps showing "Pending pharmacist review" for that record
 regardless of what's now in the database, until a human reviews it.
 
 ```bash
-python scripts/draft_content.py statins    # or diuretics / ppi
+python scripts/draft_content.py statins    # or diuretics / ppi / glp1
 python scripts/review_content.py           # approve, edit, or skip each draft
 ```
 

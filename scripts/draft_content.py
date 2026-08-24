@@ -9,7 +9,7 @@ with scripts/review_content.py before it's safe to show a customer (see
 companion_page.py's render gate).
 
 Usage:
-    python scripts/draft_content.py <statins|diuretics|ppi>
+    python scripts/draft_content.py <statins|diuretics|ppi|glp1>
 
 Requires ANTHROPIC_API_KEY — only for running this script, not for the
 main API server. Get a key at https://console.anthropic.com/settings/keys
@@ -25,9 +25,18 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+SRC_DIR = REPO_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 load_dotenv(REPO_ROOT / ".env")
 
-DRAFTABLE_CLASSES = {"statins", "diuretics", "ppi"}
+from mind_recovery_mvp.evidence_excerpts import EVIDENCE_EXCERPTS  # noqa: E402
+
+# Derived from evidence_excerpts.py rather than hardcoded: a class is
+# draftable exactly when real source material exists for it, not based on
+# membership in the full medication-class list (seed_data.py) — glp1
+# wasn't draftable until an evidence excerpt existed for it.
+DRAFTABLE_CLASSES = {e["medication_class"] for e in EVIDENCE_EXCERPTS}
 
 
 def main(argv: list[str]) -> int:
@@ -53,7 +62,6 @@ def main(argv: list[str]) -> int:
     from mind_recovery_mvp.content_review import STATUS_LLM_DRAFTED_PENDING_REVIEW
     from mind_recovery_mvp.db import SessionLocal, init_db
     from mind_recovery_mvp.drafting import apply_draft_to_record, draft_content_fields
-    from mind_recovery_mvp.evidence_excerpts import EVIDENCE_EXCERPTS
     from mind_recovery_mvp.loader import load_seed_data
     from mind_recovery_mvp.models import NutrientContent
 

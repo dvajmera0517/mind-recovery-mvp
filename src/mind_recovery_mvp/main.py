@@ -25,8 +25,11 @@ from mind_recovery_mvp.schemas import (
     FillEventResponse,
     MetricsResponse,
     NutrientContentResponse,
+    SimulatePrescriptionRequest,
+    SimulatePrescriptionResponse,
 )
 from mind_recovery_mvp.seed_data import NUTRIENT_CONTENT_SEED
+from mind_recovery_mvp.simulate_prescription import run_simulation
 from mind_recovery_mvp.usda import enrich_foods
 
 # Loads a repo-root .env file (if present) into the environment. Called at
@@ -132,3 +135,12 @@ def companion_page_html(medication_class: str, db: Session = Depends(get_db)) ->
 @app.get("/metrics", response_model=MetricsResponse)
 def metrics(db: Session = Depends(get_db)) -> dict:
     return get_metrics(db)
+
+
+@app.post("/simulate-prescription", response_model=SimulatePrescriptionResponse)
+def simulate_prescription(
+    payload: SimulatePrescriptionRequest, db: Session = Depends(get_db)
+) -> dict:
+    # Guaranteed present: lifespan fails fast at startup otherwise.
+    api_key = os.environ["FDC_API_KEY"]
+    return run_simulation(payload.drug_name, db, api_key)

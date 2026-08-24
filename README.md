@@ -24,14 +24,34 @@ as `fda_label_reference` — separate from the pharmacist-curated
 `recommendation`. No key needed; optionally set `OPENFDA_API_KEY` in `.env`
 to raise its rate limit.
 
-Separately, `src/mind_recovery_mvp/rxclass.py` provides
-`classify_medication_class(drug_name)`, a helper that looks up a drug's
-therapeutic class via [RxClass](https://rxnav.nlm.nih.gov/REST/rxclass) (NLM
-— no key needed) and maps it to one of the five target classes. It's not
-wired into an endpoint yet.
+`src/mind_recovery_mvp/rxclass.py` provides `classify_medication_class(drug_name)`,
+which looks up a drug's therapeutic class via
+[RxClass](https://rxnav.nlm.nih.gov/REST/rxclass) (NLM — no key needed) and
+maps it to one of the five target classes, or `None` if it doesn't match any
+— a normal outcome for most real-world drug names, not an error.
 
 None of RxClass/openFDA/`OPENFDA_API_KEY` are required to start the server —
 only `FDC_API_KEY` is.
+
+### `POST /simulate-prescription`
+
+Takes a raw drug name — `{"drug_name": "atorvastatin"}` — and runs the full
+pipeline live in one call: RxClass classifies it, then (if classified) looks
+up the matching clinical content record, enriches its foods via USDA, and
+pulls the openFDA label reference — the same functions `/fill-event` uses,
+not reimplemented. Returns one consolidated response: the classification
+result, the clinical content record with its real `content_status` (whatever
+it currently is — `approved`, a pending-review state, or still
+`PLACEHOLDER`), the USDA-enriched foods, the openFDA reference text, and a
+`timing_ms` breakdown (RxClass/USDA/openFDA, each in milliseconds) so you can
+see these are real network calls, not instant mocked ones.
+
+A drug that doesn't map to any of the five classes (e.g. `amoxicillin`)
+still returns `200` with `classification.matched: false` and a `message`
+explaining why — not an error, since most real-world drug names aren't in
+scope for this prototype. In that case `usda`/`openfda` in `timing_ms` are
+`null` (not `0`) — the pipeline stops after classification and never
+attempts them.
 
 ## Content drafting for statins, diuretics, PPIs, GLP-1
 

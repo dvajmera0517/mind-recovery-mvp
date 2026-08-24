@@ -33,6 +33,12 @@ FAKE_FDA_LABEL_REFERENCE = {
     "warnings_and_cautions": "Test warnings and cautions text.",
 }
 
+# Default mocked classification for any drug name — good enough for tests
+# that don't care about a specific mapping. Tests exercising
+# /simulate-prescription's classified-vs-unmatched branches override this
+# with their own nested patch, same pattern as the USDA/openFDA fakes.
+FAKE_RXCLASS_RESULT = "statins"
+
 
 @pytest.fixture(autouse=True)
 def _isolate_external_dependencies(
@@ -40,7 +46,7 @@ def _isolate_external_dependencies(
 ) -> Iterator[None]:
     """Keep the default test run fast and offline.
 
-    Every test gets a placeholder FDC_API_KEY and mocked USDA/openFDA
+    Every test gets a placeholder FDC_API_KEY and mocked RxClass/USDA/openFDA
     lookups, so nothing in the default run touches the real network.
     Tests marked @pytest.mark.integration are left untouched on purpose,
     so they can exercise the real keys/APIs.
@@ -58,6 +64,10 @@ def _isolate_external_dependencies(
         patch(
             "mind_recovery_mvp.openfda.get_fda_label_reference",
             return_value=FAKE_FDA_LABEL_REFERENCE,
+        ),
+        patch(
+            "mind_recovery_mvp.rxclass.classify_medication_class",
+            return_value=FAKE_RXCLASS_RESULT,
         ),
     ):
         yield

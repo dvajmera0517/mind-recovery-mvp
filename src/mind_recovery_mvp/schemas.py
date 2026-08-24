@@ -56,6 +56,31 @@ class FillEventResponse(NutrientContentResponse):
     fda_label_reference: FdaLabelReference | None
 
 
+class SimulatePrescriptionRequest(BaseModel):
+    drug_name: str
+
+
+class ClassificationResult(BaseModel):
+    matched: bool
+    medication_class: str | None
+    message: str | None = None
+
+
+class TimingBreakdownMs(BaseModel):
+    rxclass: float | None
+    usda: float | None
+    openfda: float | None
+
+
+class SimulatePrescriptionResponse(BaseModel):
+    drug_name: str
+    classification: ClassificationResult
+    clinical_content: NutrientContentResponse | None
+    recommendation: Recommendation | None
+    fda_label_reference: FdaLabelReference | None
+    timing_ms: TimingBreakdownMs
+
+
 class MedicationClassMetrics(BaseModel):
     medication_class: str
     fill_event_count: int

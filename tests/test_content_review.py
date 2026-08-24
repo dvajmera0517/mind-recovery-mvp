@@ -3,9 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from mind_recovery_mvp.content_review import (
+    PENDING_REVIEW_STATUSES,
     STATUS_APPROVED,
     STATUS_APPROVED_WITH_EDITS,
     STATUS_LLM_DRAFTED_PENDING_REVIEW,
+    STATUS_SAMPLE_CONTENT_PENDING_REVIEW,
     approve_record,
     is_customer_visible,
 )
@@ -19,6 +21,20 @@ def test_is_customer_visible_approved() -> None:
 
 def test_is_customer_visible_llm_drafted_pending_review() -> None:
     assert is_customer_visible(STATUS_LLM_DRAFTED_PENDING_REVIEW) is False
+
+
+def test_is_customer_visible_sample_content_pending_review() -> None:
+    assert is_customer_visible(STATUS_SAMPLE_CONTENT_PENDING_REVIEW) is False
+
+
+def test_pending_review_statuses_covers_both_draft_paths() -> None:
+    # review_content.py lists exactly this set — regression check for the
+    # "confirm it handles the new status, don't assume" ask: it did NOT,
+    # until PENDING_REVIEW_STATUSES replaced the old single-status filter.
+    assert PENDING_REVIEW_STATUSES == {
+        STATUS_LLM_DRAFTED_PENDING_REVIEW,
+        STATUS_SAMPLE_CONTENT_PENDING_REVIEW,
+    }
 
 
 def test_is_customer_visible_placeholder() -> None:

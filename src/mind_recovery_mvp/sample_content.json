@@ -1,0 +1,42 @@
+[
+  {
+    "medication_class": "statins",
+    "content_status": "sample_content_pending_pharmacist_review",
+    "nutrient_concern": "CoQ10 association",
+    "why_it_matters": "Statins work by blocking a pathway the body also uses to make coenzyme Q10 (CoQ10), and some research has found lower CoQ10 levels in people taking statins long-term.",
+    "foods_that_may_help": ["organ meats (liver, heart)", "fatty fish (salmon, mackerel, sardines)", "whole grains", "peanuts", "soybean or canola oil"],
+    "supplements_to_discuss": ["CoQ10 supplements"],
+    "talk_to_pharmacist_if": "you experience muscle aches, weakness, or unusual fatigue while taking a statin",
+    "clinical_source": "General pharmacology/nutrition literature on statin-associated CoQ10 depletion — sample content for demo; pharmacist must supply a verified citation before real use"
+  },
+  {
+    "medication_class": "diuretics",
+    "content_status": "sample_content_pending_pharmacist_review",
+    "nutrient_concern": "Potassium or magnesium depletion risk",
+    "why_it_matters": "Diuretics increase how much potassium and magnesium the kidneys remove from the body, which can lead to low levels with ongoing use.",
+    "foods_that_may_help": ["bananas", "leafy greens", "beans", "avocados", "nuts"],
+    "supplements_to_discuss": ["Ask your pharmacist whether a potassium or magnesium supplement is appropriate for your specific diuretic"],
+    "talk_to_pharmacist_if": "you experience muscle cramps, weakness, or an irregular heartbeat while taking a diuretic",
+    "clinical_source": "General pharmacology literature on diuretic-associated electrolyte depletion — sample content for demo; pharmacist must supply a verified citation before real use"
+  },
+  {
+    "medication_class": "ppi",
+    "content_status": "sample_content_pending_pharmacist_review",
+    "nutrient_concern": "Magnesium, Calcium, and Vitamin B12 concerns",
+    "why_it_matters": "Long-term use of PPIs can reduce how well the body absorbs magnesium, calcium, and vitamin B12, since stomach acid plays a role in absorbing each of these.",
+    "foods_that_may_help": ["leafy greens, nuts, and seeds (magnesium)", "dairy and fortified foods (calcium)", "eggs, dairy, fish, and fortified cereals (vitamin B12)"],
+    "supplements_to_discuss": ["Ask your pharmacist whether a magnesium, calcium, or B12 supplement is appropriate, especially if you've taken a PPI for longer than a year"],
+    "talk_to_pharmacist_if": "you've taken a PPI for longer than a year, or experience muscle cramps, an irregular heartbeat, tingling, or unusual fatigue",
+    "clinical_source": "FDA Drug Safety Communication (March 2011) on PPI-associated low magnesium — sample content for demo; pharmacist should confirm current citation and add calcium/B12-specific references"
+  },
+  {
+    "medication_class": "glp1",
+    "content_status": "sample_content_pending_pharmacist_review",
+    "nutrient_concern": "Reduced overall nutrient intake — protein, Vitamin B12, iron, Vitamin D, and thiamine — due to appetite suppression and delayed gastric emptying",
+    "why_it_matters": "GLP-1 medicines can significantly reduce appetite and slow digestion, which sometimes makes it harder to get enough protein and key vitamins and minerals from food alone.",
+    "foods_that_may_help": ["protein-rich, easy-to-tolerate foods (eggs, Greek yogurt, lean meats, fish, protein shakes)", "vitamin B12 sources (eggs, dairy, fish, fortified cereals)"],
+    "supplements_to_discuss": ["Ask your pharmacist about a protein supplement or a multivitamin, especially if you're eating noticeably less than before"],
+    "talk_to_pharmacist_if": "you notice unusual weakness, numbness, tingling, vision changes, or have trouble keeping up your food and fluid intake",
+    "clinical_source": "Retrospective cohort literature on GLP-1RA-associated nutritional deficiencies (2025–2026 observational studies) — sample content for demo; pharmacist must supply a verified citation before real use"
+  }
+]

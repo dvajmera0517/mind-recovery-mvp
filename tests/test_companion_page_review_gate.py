@@ -8,9 +8,12 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from mind_recovery_mvp.content_review import (
+    CONTENT_ORIGIN_LLM,
+    CONTENT_ORIGIN_SAMPLE,
     STATUS_APPROVED,
     STATUS_APPROVED_WITH_EDITS,
     STATUS_LLM_DRAFTED_PENDING_REVIEW,
+    STATUS_SAMPLE_CONTENT_PENDING_REVIEW,
 )
 from mind_recovery_mvp.models import NutrientContent
 
@@ -23,7 +26,9 @@ FULLY_POPULATED_FIELDS = {
 }
 
 
-def _set_diuretics_status_and_fields(client: TestClient, content_status: str) -> None:
+def _set_diuretics_status_and_fields(
+    client: TestClient, content_status: str, content_origin: str | None = None
+) -> None:
     with client.db_session_factory() as session:
         record = (
             session.query(NutrientContent)
@@ -33,6 +38,7 @@ def _set_diuretics_status_and_fields(client: TestClient, content_status: str) ->
         for field, value in FULLY_POPULATED_FIELDS.items():
             setattr(record, field, value)
         record.content_status = content_status
+        record.content_origin = content_origin
         session.commit()
 
 
@@ -86,3 +92,66 @@ def test_llm_drafted_pending_review_pdf_also_hides_content(
     # Can't grep text out of PDF bytes directly here; the HTML-path test
     # above covers the actual gating logic, this just confirms the PDF
     # route renders without error for a gated, fully-populated record.
+
+
+def test_sample_content_pending_review_hides_all_fields_even_when_populated(
+    client: TestClient,
+) -> None:
+    _set_diuretics_status_and_fields(
+        client, STATUS_SAMPLE_CONTENT_PENDING_REVIEW, content_origin=CONTENT_ORIGIN_SAMPLE
+    )
+
+    response = client.get("/companion-page/diuretics")
+    assert response.status_code == 200
+    body = response.text
+
+    for value in FULLY_POPULATED_FIELDS.values():
+        text = value if isinstance(value, str) else value[0]
+        assert text not in body
+    assert body.count("Pending pharmacist review") == 5
+    assert "Content origin" not in body
+
+
+def test_approved_sample_content_shows_sample_provenance_line(
+    client: TestClient,
+) -> None:
+    _set_diuretics_status_and_fields(
+        client, STATUS_APPROVED, content_origin=CONTENT_ORIGIN_SAMPLE
+    )
+
+    response = client.get("/companion-page/diuretics")
+    assert response.status_code == 200
+    body = response.text
+
+    assert (
+        "Content origin: Sample content (hand-written for demo), "
+        "pharmacist-reviewed" in body
+    )
+
+
+def test_approved_llm_content_shows_llm_provenance_line_distinct_from_sample(
+    client: TestClient,
+) -> None:
+    _set_diuretics_status_and_fields(
+        client, STATUS_APPROVED_WITH_EDITS, content_origin=CONTENT_ORIGIN_LLM
+    )
+
+    response = client.get("/companion-page/diuretics")
+    assert response.status_code == 200
+    body = response.text
+
+    assert "Content origin: LLM-drafted (Claude), pharmacist-reviewed" in body
+    assert "Sample content" not in body
+
+
+def test_approved_with_no_recorded_origin_shows_no_provenance_line(
+    client: TestClient,
+) -> None:
+    # metformin-shaped case: approved (hypothetically) but content_origin
+    # was never set, since it predates this pipeline. No line, not a
+    # fabricated one.
+    _set_diuretics_status_and_fields(client, STATUS_APPROVED, content_origin=None)
+
+    response = client.get("/companion-page/diuretics")
+    assert response.status_code == 200
+    assert "Content origin" not in response.text

@@ -20,7 +20,10 @@ from typing import Any
 import anthropic
 from pydantic import BaseModel
 
-from mind_recovery_mvp.content_review import STATUS_LLM_DRAFTED_PENDING_REVIEW
+from mind_recovery_mvp.content_review import (
+    CONTENT_ORIGIN_LLM,
+    STATUS_LLM_DRAFTED_PENDING_REVIEW,
+)
 from mind_recovery_mvp.models import NutrientContent
 
 DRAFTING_MODEL = "claude-opus-5"
@@ -140,3 +143,4 @@ def apply_draft_to_record(
     record.clinical_source = drafted["clinical_source"]
     record.evidence_excerpt = evidence_excerpt
     record.content_status = STATUS_LLM_DRAFTED_PENDING_REVIEW
+    record.content_origin = CONTENT_ORIGIN_LLM

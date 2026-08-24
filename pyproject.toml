@@ -27,7 +27,7 @@ dev = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-mind_recovery_mvp = ["templates/*.html"]
+mind_recovery_mvp = ["templates/*.html", "sample_content.json"]
 
 [tool.pytest.ini_options]
 markers = [

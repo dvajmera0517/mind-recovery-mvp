@@ -52,6 +52,12 @@
         border: 1px solid #f59e0b;
         padding: 1pt 6pt;
     }
+    p.provenance {
+        margin-top: 12pt;
+        font-size: 9pt;
+        font-style: italic;
+        color: #555555;
+    }
     p.disclaimer {
         margin-top: 20pt;
         padding-top: 8pt;
@@ -115,6 +121,8 @@
             </td>
         </tr>
     </table>
+
+    {% if content_origin_label %}<p class="provenance">{{ content_origin_label }}</p>{% endif %}
 
     <p class="disclaimer">This is educational information, not medical advice. Talk to your pharmacist or provider before starting any supplement.</p>
 </body>

@@ -33,26 +33,48 @@ wired into an endpoint yet.
 None of RxClass/openFDA/`OPENFDA_API_KEY` are required to start the server —
 only `FDC_API_KEY` is.
 
-## LLM-assisted content drafting (statins, diuretics, PPIs, GLP-1)
+## Content drafting for statins, diuretics, PPIs, GLP-1
 
-All five medication classes have an evidence excerpt now (see
-`src/mind_recovery_mvp/evidence_excerpts.py`), so all four still-placeholder
-classes (see the table below) are draftable. `scripts/draft_content.py` uses
-Claude to draft their missing fields from that fixed, short excerpt — never
-from general model knowledge. It never marks anything "approved": output is
-stored as `content_status = "llm_drafted_pending_pharmacist_review"`, and the
-companion page keeps showing "Pending pharmacist review" for that record
-regardless of what's now in the database, until a human reviews it.
+The four still-placeholder classes (see the table below) can each be
+drafted two ways with `scripts/draft_content.py`. Neither mode ever marks
+anything "approved" — a human always reviews the draft via
+`scripts/review_content.py` first, and the companion page keeps showing
+"Pending pharmacist review" for that record regardless of what's now in
+the database, until that happens.
+
+**Default — sample content (no API call, no key needed):**
 
 ```bash
 python scripts/draft_content.py statins    # or diuretics / ppi / glp1
+```
+
+Loads hand-written demo copy from `src/mind_recovery_mvp/sample_content.json`.
+`content_status` becomes `"sample_content_pending_pharmacist_review"`.
+
+**`--use-llm` — real Claude call (requires `ANTHROPIC_API_KEY`):**
+
+```bash
+python scripts/draft_content.py statins --use-llm
+```
+
+Drafts from the fixed excerpt in `src/mind_recovery_mvp/evidence_excerpts.py`
+— never from general model knowledge. `content_status` becomes
+`"llm_drafted_pending_pharmacist_review"`.
+
+Either way:
+
+```bash
 python scripts/review_content.py           # approve, edit, or skip each draft
 ```
 
 Set `ANTHROPIC_API_KEY` in `.env` (get one at
-https://console.anthropic.com/settings/keys) — only `draft_content.py` needs
-it; the main server doesn't. `review_content.py` needs no API key, just a
-`REVIEWER_NAME` env var (or it'll prompt you).
+https://console.anthropic.com/settings/keys) only if you'll use `--use-llm`
+— the default mode, the main server, and `review_content.py` all need no
+API key at all, just a `REVIEWER_NAME` env var for the reviewer's name (or
+it'll prompt you). Once approved, the companion page shows a provenance
+line distinguishing the two paths — `"Content origin: Sample content
+(hand-written for demo), pharmacist-reviewed"` vs. `"Content origin:
+LLM-drafted (Claude), pharmacist-reviewed"`.
 
 ## Run
 

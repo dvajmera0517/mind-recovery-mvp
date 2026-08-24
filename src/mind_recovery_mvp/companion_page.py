@@ -6,7 +6,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from xhtml2pdf import pisa
 
-from mind_recovery_mvp.content_review import is_customer_visible
+from mind_recovery_mvp.content_review import CONTENT_ORIGIN_LABELS, is_customer_visible
 from mind_recovery_mvp.models import NutrientContent
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -30,9 +30,22 @@ _env = Environment(
 def render_companion_page_html(record: NutrientContent) -> str:
     template = _env.get_template("companion_page.html")
     # Gate on content_status, not on whether fields happen to be
-    # populated: an LLM draft or a partially-seeded placeholder must
-    # never render as real content until a pharmacist has approved it.
+    # populated: an LLM draft, sample content, or a partially-seeded
+    # placeholder must never render as real content until a pharmacist
+    # has approved it.
     show_content = is_customer_visible(record.content_status)
+
+    # Provenance is only meaningful (and only shown) once the content is
+    # actually visible — content_origin survives past approval so this
+    # still works for "approved"/"approved_with_edits", not just the
+    # moment right after drafting.
+    content_origin_label = None
+    if show_content and record.content_origin in CONTENT_ORIGIN_LABELS:
+        content_origin_label = (
+            f"Content origin: {CONTENT_ORIGIN_LABELS[record.content_origin]}, "
+            "pharmacist-reviewed"
+        )
+
     return template.render(
         medication=MEDICATION_DISPLAY_NAMES.get(
             record.medication_class, record.medication_class
@@ -47,6 +60,7 @@ def render_companion_page_html(record: NutrientContent) -> str:
             record.talk_to_pharmacist_if if show_content else None
         ),
         clinical_source=record.clinical_source if show_content else None,
+        content_origin_label=content_origin_label,
         pending_text=PENDING_TEXT,
     )
 

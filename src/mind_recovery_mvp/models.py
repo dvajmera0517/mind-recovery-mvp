@@ -21,9 +21,16 @@ class NutrientContent(Base):
     talk_to_pharmacist_if: Mapped[str | None] = mapped_column(String, nullable=True)
     clinical_source: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    # Set by scripts/draft_content.py: the source excerpt the LLM draft was
-    # generated from, so a reviewer can see what it was drafted from.
+    # Set by scripts/draft_content.py (--use-llm mode only): the source
+    # excerpt the LLM draft was generated from, so a reviewer can see what
+    # it was drafted from. Left null for sample-content-mode drafts, which
+    # aren't generated from an excerpt.
     evidence_excerpt: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Set by scripts/draft_content.py in either mode: content_review.CONTENT_ORIGIN_LLM
+    # or CONTENT_ORIGIN_SAMPLE. Kept around after approval (content_status
+    # alone no longer distinguishes the two once it's "approved") so
+    # companion_page.py can show accurate provenance.
+    content_origin: Mapped[str | None] = mapped_column(String, nullable=True)
     # Set by scripts/review_content.py on approval.
     reviewed_by: Mapped[str | None] = mapped_column(String, nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(

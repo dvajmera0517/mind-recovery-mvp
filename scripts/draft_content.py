@@ -1,23 +1,32 @@
 #!/usr/bin/env python3
-"""Draft placeholder clinical content for one medication class using
-Claude, from the fixed evidence excerpt in
-src/mind_recovery_mvp/evidence_excerpts.py.
+"""Draft placeholder clinical content for one medication class.
 
-Output is stored with content_status =
-"llm_drafted_pending_pharmacist_review" — never "approved". Review it
-with scripts/review_content.py before it's safe to show a customer (see
-companion_page.py's render gate).
+Two modes:
+  - Default (no flags): loads hand-written sample content from
+    sample_content.json. No API call, no ANTHROPIC_API_KEY needed.
+    content_status becomes "sample_content_pending_pharmacist_review".
+  - --use-llm: calls Claude to draft from the fixed evidence excerpt in
+    evidence_excerpts.py. Requires ANTHROPIC_API_KEY.
+    content_status becomes "llm_drafted_pending_pharmacist_review".
+
+Either way, this is still just a draft: review it with
+scripts/review_content.py before it's safe to show a customer (see
+companion_page.py's render gate) — neither mode ever marks anything
+"approved".
 
 Usage:
     python scripts/draft_content.py <statins|diuretics|ppi|glp1>
+    python scripts/draft_content.py <statins|diuretics|ppi|glp1> --use-llm
 
-Requires ANTHROPIC_API_KEY — only for running this script, not for the
-main API server. Get a key at https://console.anthropic.com/settings/keys
-and set it in .env or as an environment variable.
+--use-llm requires ANTHROPIC_API_KEY — only for that mode, not for the
+main API server and not for the default sample-content mode. Get a key
+at https://console.anthropic.com/settings/keys and set it in .env or as
+an environment variable.
 """
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -31,47 +40,120 @@ if str(SRC_DIR) not in sys.path:
 load_dotenv(REPO_ROOT / ".env")
 
 from mind_recovery_mvp.evidence_excerpts import EVIDENCE_EXCERPTS  # noqa: E402
+from mind_recovery_mvp.sample_content import SAMPLE_CONTENT  # noqa: E402
 
-# Derived from evidence_excerpts.py rather than hardcoded: a class is
-# draftable exactly when real source material exists for it, not based on
-# membership in the full medication-class list (seed_data.py) — glp1
-# wasn't draftable until an evidence excerpt existed for it.
-DRAFTABLE_CLASSES = {e["medication_class"] for e in EVIDENCE_EXCERPTS}
+LLM_DRAFTABLE_CLASSES = {e["medication_class"] for e in EVIDENCE_EXCERPTS}
+SAMPLE_DRAFTABLE_CLASSES = {s["medication_class"] for s in SAMPLE_CONTENT}
+
+
+def _print_drafted_fields(record, status_label: str) -> None:
+    print(f"Drafted fields for {record.medication_class!r}:")
+    for field in (
+        "why_it_matters",
+        "foods_that_may_help",
+        "supplements_to_discuss",
+        "talk_to_pharmacist_if",
+        "clinical_source",
+    ):
+        print(f"  {field}: {getattr(record, field)!r}")
+    print(f"content_status = {status_label!r}")
+    print("Run `python scripts/review_content.py` to review before approval.")
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 1 or argv[0] not in DRAFTABLE_CLASSES:
-        choices = "|".join(sorted(DRAFTABLE_CLASSES))
-        print(f"Usage: python scripts/draft_content.py <{choices}>", file=sys.stderr)
-        return 1
-    medication_class = argv[0]
+    parser = argparse.ArgumentParser(
+        description="Draft placeholder clinical content for one medication class."
+    )
+    parser.add_argument(
+        "medication_class",
+        choices=sorted(SAMPLE_DRAFTABLE_CLASSES | LLM_DRAFTABLE_CLASSES),
+    )
+    parser.add_argument(
+        "--use-llm",
+        action="store_true",
+        help=(
+            "Call the real Claude API to draft from evidence_excerpts.py "
+            "instead of loading sample_content.json. Requires "
+            "ANTHROPIC_API_KEY."
+        ),
+    )
+    args = parser.parse_args(argv)
+    medication_class = args.medication_class
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    from mind_recovery_mvp.content_review import (
+        STATUS_LLM_DRAFTED_PENDING_REVIEW,
+        STATUS_SAMPLE_CONTENT_PENDING_REVIEW,
+    )
+    from mind_recovery_mvp.db import SessionLocal, init_db
+    from mind_recovery_mvp.loader import load_seed_data
+    from mind_recovery_mvp.models import NutrientContent
+
+    if args.use_llm:
+        if medication_class not in LLM_DRAFTABLE_CLASSES:
+            print(
+                f"{medication_class!r} has no evidence excerpt in "
+                "evidence_excerpts.py — can't use --use-llm for it.",
+                file=sys.stderr,
+            )
+            return 1
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            print(
+                "ANTHROPIC_API_KEY is not set. This is only needed for "
+                "--use-llm — the main API server and the default "
+                "sample-content mode don't need it. Get a key at "
+                "https://console.anthropic.com/settings/keys and set "
+                "ANTHROPIC_API_KEY=<your-key> in .env or as an "
+                "environment variable.",
+                file=sys.stderr,
+            )
+            return 1
+
+        from mind_recovery_mvp.drafting import (
+            apply_draft_to_record,
+            draft_content_fields,
+        )
+
+        excerpt_record = next(
+            e for e in EVIDENCE_EXCERPTS if e["medication_class"] == medication_class
+        )
+
+        init_db()
+        with SessionLocal() as session:
+            load_seed_data(session)
+            record = (
+                session.query(NutrientContent)
+                .filter_by(medication_class=medication_class)
+                .one()
+            )
+
+            print(f"Drafting content for {medication_class!r} via Claude...")
+            drafted = draft_content_fields(
+                medication_class=medication_class,
+                nutrient_concern=record.nutrient_concern,
+                evidence_excerpt=excerpt_record["evidence_excerpt"],
+                citation_label=excerpt_record["citation_label"],
+                api_key=api_key,
+            )
+            apply_draft_to_record(record, drafted, excerpt_record["evidence_excerpt"])
+            session.commit()
+            _print_drafted_fields(record, STATUS_LLM_DRAFTED_PENDING_REVIEW)
+        return 0
+
+    # Default: sample content, no API call, no key required.
+    if medication_class not in SAMPLE_DRAFTABLE_CLASSES:
         print(
-            "ANTHROPIC_API_KEY is not set. This is only needed to run "
-            "scripts/draft_content.py — the main API server doesn't need "
-            "it. Get a key at "
-            "https://console.anthropic.com/settings/keys and set "
-            "ANTHROPIC_API_KEY=<your-key> in .env or as an environment "
-            "variable.",
+            f"{medication_class!r} has no entry in sample_content.json.",
             file=sys.stderr,
         )
         return 1
 
-    from mind_recovery_mvp.content_review import STATUS_LLM_DRAFTED_PENDING_REVIEW
-    from mind_recovery_mvp.db import SessionLocal, init_db
-    from mind_recovery_mvp.drafting import apply_draft_to_record, draft_content_fields
-    from mind_recovery_mvp.loader import load_seed_data
-    from mind_recovery_mvp.models import NutrientContent
+    from mind_recovery_mvp.sample_content import apply_sample_content_to_record
 
-    excerpt_record = next(
-        (e for e in EVIDENCE_EXCERPTS if e["medication_class"] == medication_class),
-        None,
+    sample_record = next(
+        s for s in SAMPLE_CONTENT if s["medication_class"] == medication_class
     )
-    if excerpt_record is None:
-        print(f"No evidence excerpt found for {medication_class!r}.", file=sys.stderr)
-        return 1
 
     init_db()
     with SessionLocal() as session:
@@ -81,30 +163,10 @@ def main(argv: list[str]) -> int:
             .filter_by(medication_class=medication_class)
             .one()
         )
-
-        print(f"Drafting content for {medication_class!r} via Claude...")
-        drafted = draft_content_fields(
-            medication_class=medication_class,
-            nutrient_concern=record.nutrient_concern,
-            evidence_excerpt=excerpt_record["evidence_excerpt"],
-            citation_label=excerpt_record["citation_label"],
-            api_key=api_key,
-        )
-        apply_draft_to_record(record, drafted, excerpt_record["evidence_excerpt"])
+        print(f"Loading sample content for {medication_class!r} (no API call)...")
+        apply_sample_content_to_record(record, sample_record)
         session.commit()
-
-        print(f"Drafted fields for {medication_class!r}:")
-        for field in (
-            "why_it_matters",
-            "foods_that_may_help",
-            "supplements_to_discuss",
-            "talk_to_pharmacist_if",
-            "clinical_source",
-        ):
-            print(f"  {field}: {getattr(record, field)!r}")
-        print(f"content_status = {STATUS_LLM_DRAFTED_PENDING_REVIEW!r}")
-        print("Run `python scripts/review_content.py` to review before approval.")
-
+        _print_drafted_fields(record, STATUS_SAMPLE_CONTENT_PENDING_REVIEW)
     return 0
 
 

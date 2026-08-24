@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Interactive CLI to review LLM-drafted clinical content before approval.
+"""Interactive CLI to review drafted clinical content before approval.
 
-Lists every record with content_status ==
-"llm_drafted_pending_pharmacist_review", shows the draft next to its
-source evidence excerpt, and lets the reviewer approve as-is or edit any
-field before approving. On approval, content_status becomes "approved"
-(nothing changed) or "approved_with_edits" (something did), and
-reviewed_by/reviewed_at are recorded.
+Lists every record whose content_status is one of PENDING_REVIEW_STATUSES
+(both "llm_drafted_pending_pharmacist_review" and
+"sample_content_pending_pharmacist_review" — see content_review.py), shows
+the draft next to its source (an evidence excerpt for LLM drafts; sample
+content has none, since it's hand-written directly), and lets the
+reviewer approve as-is or edit any field before approving. On approval,
+content_status becomes "approved" (nothing changed) or
+"approved_with_edits" (something did), and reviewed_by/reviewed_at are
+recorded. content_origin (set by draft_content.py) is left untouched, so
+companion_page.py can still show accurate provenance after approval.
 
 Usage:
     python scripts/review_content.py
@@ -27,8 +31,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(REPO_ROOT / ".env")
 
 from mind_recovery_mvp.content_review import (  # noqa: E402
+    PENDING_REVIEW_STATUSES,
     REVIEWABLE_FIELDS,
-    STATUS_LLM_DRAFTED_PENDING_REVIEW,
     approve_record,
 )
 from mind_recovery_mvp.db import SessionLocal, init_db  # noqa: E402
@@ -79,11 +83,15 @@ def review_record(session, record: NutrientContent) -> None:
     print("\n" + "=" * 70)
     print(f"Medication class: {record.medication_class}")
     print(f"Nutrient concern: {record.nutrient_concern}")
+    print(f"Content origin: {record.content_origin or '(unknown)'}")
     print("-" * 70)
-    print("Source evidence excerpt:")
-    print(record.evidence_excerpt or "(none attached)")
+    if record.evidence_excerpt:
+        print("Source evidence excerpt:")
+        print(record.evidence_excerpt)
+    else:
+        print("Source: hand-written sample content (no evidence excerpt)")
     print("-" * 70)
-    print("LLM draft:")
+    print("Draft:")
     for field in REVIEWABLE_FIELDS:
         print(f"  {field}: {_format_value(getattr(record, field))}")
     print("=" * 70)
@@ -119,7 +127,7 @@ def main() -> int:
     with SessionLocal() as session:
         pending = (
             session.query(NutrientContent)
-            .filter_by(content_status=STATUS_LLM_DRAFTED_PENDING_REVIEW)
+            .filter(NutrientContent.content_status.in_(PENDING_REVIEW_STATUSES))
             .all()
         )
         if not pending:

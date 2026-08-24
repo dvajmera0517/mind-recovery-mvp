@@ -140,16 +140,17 @@ def test_approved_llm_content_shows_llm_provenance_line_distinct_from_sample(
     assert response.status_code == 200
     body = response.text
 
-    assert "Content origin: LLM-drafted (Claude), pharmacist-reviewed" in body
+    assert "Content origin: LLM-drafted, pharmacist-reviewed" in body
     assert "Sample content" not in body
 
 
 def test_approved_with_no_recorded_origin_shows_no_provenance_line(
     client: TestClient,
 ) -> None:
-    # metformin-shaped case: approved (hypothetically) but content_origin
-    # was never set, since it predates this pipeline. No line, not a
-    # fabricated one.
+    # Defensive case: approved but content_origin was never set (e.g. a
+    # future draft path that forgets to tag it). No line, not a
+    # fabricated one. (metformin itself always sets "pharmacist_authored"
+    # via seed_data.py — see test_companion_page.py.)
     _set_diuretics_status_and_fields(client, STATUS_APPROVED, content_origin=None)
 
     response = client.get("/companion-page/diuretics")

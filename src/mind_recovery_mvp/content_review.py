@@ -27,12 +27,22 @@ PENDING_REVIEW_STATUSES = {
 # Tags NutrientContent.content_origin, so provenance survives past
 # approval (content_status alone no longer distinguishes sample vs. LLM
 # once it's "approved"/"approved_with_edits").
+CONTENT_ORIGIN_PHARMACIST_AUTHORED = "pharmacist_authored"
 CONTENT_ORIGIN_LLM = "llm"
 CONTENT_ORIGIN_SAMPLE = "sample"
 
+# Each value is the COMPLETE text that follows "Content origin: " on the
+# companion page — not a description with a suffix bolted on in code.
+# The three are deliberately worded differently (no shared suffix) so
+# they can never read as interchangeable: pharmacist-authored content was
+# never drafted by anything, so it gets no "pharmacist-reviewed" claim
+# tacked on (that would overstate what happened to it), while both draft
+# paths explicitly say "pharmacist-reviewed" because a human review step
+# is exactly what separates a draft from something safe to show.
 CONTENT_ORIGIN_LABELS: dict[str, str] = {
-    CONTENT_ORIGIN_SAMPLE: "Sample content (hand-written for demo)",
-    CONTENT_ORIGIN_LLM: "LLM-drafted (Claude)",
+    CONTENT_ORIGIN_PHARMACIST_AUTHORED: "pharmacist-authored",
+    CONTENT_ORIGIN_SAMPLE: "Sample content (hand-written for demo), pharmacist-reviewed",
+    CONTENT_ORIGIN_LLM: "LLM-drafted, pharmacist-reviewed",
 }
 
 REVIEWABLE_FIELDS = [

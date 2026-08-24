@@ -32,3 +32,4 @@ def test_seed_data_loads_all_records_including_nulls() -> None:
         assert actual.supplements_to_discuss == expected["supplements_to_discuss"]
         assert actual.talk_to_pharmacist_if == expected["talk_to_pharmacist_if"]
         assert actual.clinical_source == expected["clinical_source"]
+        assert actual.content_origin == expected["content_origin"]

@@ -42,8 +42,7 @@ def render_companion_page_html(record: NutrientContent) -> str:
     content_origin_label = None
     if show_content and record.content_origin in CONTENT_ORIGIN_LABELS:
         content_origin_label = (
-            f"Content origin: {CONTENT_ORIGIN_LABELS[record.content_origin]}, "
-            "pharmacist-reviewed"
+            f"Content origin: {CONTENT_ORIGIN_LABELS[record.content_origin]}"
         )
 
     return template.render(

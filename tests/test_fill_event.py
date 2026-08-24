@@ -21,7 +21,12 @@ def test_fill_event_returns_seeded_record(
     assert response.status_code == 200
     body = response.json()
 
+    # content_origin is internal review-workflow metadata (like
+    # evidence_excerpt/reviewed_by/reviewed_at), not part of the
+    # /fill-event response schema — everything else in seed_record is.
     for field in seed_record:
+        if field == "content_origin":
+            continue
         assert body[field] == seed_record[field]
 
     expected_foods = None

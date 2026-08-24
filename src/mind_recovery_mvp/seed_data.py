@@ -22,6 +22,11 @@ NUTRIENT_CONTENT_SEED: list[dict[str, Any]] = [
         "supplements_to_discuss": ["Vitamin B12 supplements"],
         "talk_to_pharmacist_if": "you experience unusual fatigue, tingling, or numbness",
         "clinical_source": "TRC Healthcare Natural Medicines / [approved clinical reference]",
+        # Human-authored from the start — never went through the
+        # draft/review pipeline, so it's tagged distinctly from content
+        # that started as an LLM draft or sample content and was later
+        # pharmacist-reviewed. See content_review.CONTENT_ORIGIN_LABELS.
+        "content_origin": "pharmacist_authored",
     },
     {
         "medication_class": "statins",
@@ -36,6 +41,7 @@ NUTRIENT_CONTENT_SEED: list[dict[str, Any]] = [
         "supplements_to_discuss": ["CoQ10 supplements — confirm appropriateness with pharmacist"],
         "talk_to_pharmacist_if": None,
         "clinical_source": None,
+        "content_origin": None,
     },
     {
         "medication_class": "diuretics",
@@ -50,6 +56,7 @@ NUTRIENT_CONTENT_SEED: list[dict[str, Any]] = [
         "supplements_to_discuss": None,
         "talk_to_pharmacist_if": None,
         "clinical_source": None,
+        "content_origin": None,
     },
     {
         "medication_class": "ppi",
@@ -64,6 +71,7 @@ NUTRIENT_CONTENT_SEED: list[dict[str, Any]] = [
         "supplements_to_discuss": None,
         "talk_to_pharmacist_if": None,
         "clinical_source": None,
+        "content_origin": None,
     },
     {
         "medication_class": "glp1",
@@ -78,5 +86,6 @@ NUTRIENT_CONTENT_SEED: list[dict[str, Any]] = [
         "supplements_to_discuss": None,
         "talk_to_pharmacist_if": None,
         "clinical_source": None,
+        "content_origin": None,
     },
 ]

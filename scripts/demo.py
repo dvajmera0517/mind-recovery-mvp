@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""End-to-end MVP demo.
+"""End-to-end MVP demo: the before/after drafting-and-review story.
 
-Starts a throwaway server, fires /fill-event for every seeded medication
-class in sequence, downloads each companion-page PDF into ./output, and
-prints a summary table. This is the single command to see the whole MVP
-flow work end to end:
+Starts a throwaway server, renders all five companion pages exactly as
+seeded (./output/before_review/), drafts sample content for the four
+still-placeholder classes and runs them through a (simulated) reviewer
+approval, re-renders all five companion pages (./output/after_review/),
+and prints a before/after content_status comparison. This is the single
+command to see the whole MVP flow — including drafting and review — work
+end to end:
 
     python scripts/demo.py
 """
@@ -30,15 +33,25 @@ if str(SRC_DIR) not in sys.path:
 from mind_recovery_mvp.seed_data import NUTRIENT_CONTENT_SEED  # noqa: E402
 
 OUTPUT_DIR = Path.cwd() / "output"
+BEFORE_DIR = OUTPUT_DIR / "before_review"
+AFTER_DIR = OUTPUT_DIR / "after_review"
 # Derived from seed_data.py rather than hardcoded, so adding/removing a
 # medication class there doesn't also require remembering to update this.
 MEDICATION_CLASSES = [record["medication_class"] for record in NUTRIENT_CONTENT_SEED]
+# Everything except metformin, which is already pharmacist-authored and
+# was never part of the draft/review pipeline in the first place.
+DRAFTABLE_CLASSES = [c for c in MEDICATION_CLASSES if c != "metformin"]
 SERVER_STARTUP_TIMEOUT_SECONDS = 15
-CONTENT_STATUS_DISPLAY_WIDTH = 50
+CONTENT_STATUS_DISPLAY_WIDTH = 42
 # USDA's public, rate-limited testing key. Used only as a fallback when no
 # FDC_API_KEY is configured, so this demo runs out of the box. Get a real
 # key: https://fdc.nal.usda.gov/api-key-signup
 USDA_DEMO_KEY = "DEMO_KEY"
+# Explicitly NOT a real pharmacist — this demo runs the review step
+# non-interactively (approving everything as-is) purely to show what the
+# companion page looks like on the other side of a review. It stands in
+# for a real review; it does not perform one.
+DEMO_REVIEWER_NAME = "Demo Reviewer (not a licensed pharmacist)"
 
 load_dotenv(REPO_ROOT / ".env")
 
@@ -79,7 +92,10 @@ def _wait_for_health(
     raise RuntimeError(f"Server did not become healthy in time: {last_error}")
 
 
-def _start_server(port: int) -> subprocess.Popen:
+def _build_demo_env() -> dict[str, str]:
+    """The environment shared by the server subprocess and the
+    draft_content.py/review_content.py subprocesses — all three must
+    agree on DATABASE_URL to operate on the same scratch DB file."""
     env = os.environ.copy()
     # Use a scratch DB so the demo never touches a real dev DB file, and
     # is repeatable (fresh data every run).
@@ -96,7 +112,7 @@ def _start_server(port: int) -> subprocess.Popen:
         )
         env["FDC_API_KEY"] = USDA_DEMO_KEY
     # Belt-and-suspenders: some shells don't pick up editable installs
-    # reliably, so make sure the subprocess can import the package
+    # reliably, so make sure every subprocess can import the package
     # regardless.
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = (
@@ -104,7 +120,10 @@ def _start_server(port: int) -> subprocess.Popen:
         if existing_pythonpath
         else str(SRC_DIR)
     )
+    return env
 
+
+def _start_server(port: int, env: dict[str, str]) -> subprocess.Popen:
     return subprocess.Popen(
         [
             sys.executable,
@@ -124,7 +143,7 @@ def _start_server(port: int) -> subprocess.Popen:
     )
 
 
-def _run_one(client: httpx.Client, medication_class: str) -> DemoResult:
+def _run_one(client: httpx.Client, medication_class: str, output_dir: Path) -> DemoResult:
     fill_response = client.post(
         "/fill-event", json={"medication_class": medication_class}
     )
@@ -145,7 +164,7 @@ def _run_one(client: httpx.Client, medication_class: str) -> DemoResult:
     )
     detail = ""
     if pdf_ok:
-        pdf_path = OUTPUT_DIR / f"{medication_class}.pdf"
+        pdf_path = output_dir / f"{medication_class}.pdf"
         pdf_path.write_bytes(pdf_response.content)
         detail = f"saved to {pdf_path.relative_to(Path.cwd())}"
     else:
@@ -159,49 +178,136 @@ def _run_one(client: httpx.Client, medication_class: str) -> DemoResult:
     )
 
 
-def _print_summary(results: list[DemoResult]) -> None:
+def _render_all(client: httpx.Client, output_dir: Path) -> list[DemoResult]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return [_run_one(client, mc, output_dir) for mc in MEDICATION_CLASSES]
+
+
+def _run_subprocess_or_raise(
+    args: list[str], env: dict[str, str], step_name: str, stdin_input: str | None = None
+) -> str:
+    result = subprocess.run(
+        args,
+        cwd=REPO_ROOT,
+        env=env,
+        input=stdin_input,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"{step_name} failed (exit {result.returncode}):\n"
+            f"{result.stdout}{result.stderr}"
+        )
+    return result.stdout
+
+
+def _draft_sample_content(env: dict[str, str]) -> None:
+    print(
+        f"Drafting sample content for {', '.join(DRAFTABLE_CLASSES)} "
+        "(default mode — no API key needed)..."
+    )
+    for medication_class in DRAFTABLE_CLASSES:
+        _run_subprocess_or_raise(
+            [sys.executable, str(REPO_ROOT / "scripts" / "draft_content.py"), medication_class],
+            env,
+            f"draft_content.py {medication_class}",
+        )
+        print(f"  drafted: {medication_class}")
+
+
+def _review_all_drafts(env: dict[str, str]) -> None:
+    banner = (
+        f'DEMO REVIEW STEP — reviewer name: "{DEMO_REVIEWER_NAME}"\n'
+        "    This is a stand-in for a real pharmacist review, run "
+        "non-interactively for the demo — it does NOT perform an actual "
+        "clinical review of this content."
+    )
+    print()
+    print("!" * 78)
+    print(banner)
+    print("!" * 78)
+
+    review_env = dict(env)
+    review_env["REVIEWER_NAME"] = DEMO_REVIEWER_NAME
+    # Approve every pending draft as-is, one "a" per draftable class.
+    approve_all_input = "a\n" * len(DRAFTABLE_CLASSES)
+    output = _run_subprocess_or_raise(
+        [sys.executable, str(REPO_ROOT / "scripts" / "review_content.py")],
+        review_env,
+        "review_content.py",
+        stdin_input=approve_all_input,
+    )
+    print(output)
+    print("!" * 78)
+    print(f'End of demo review step — reviewer was "{DEMO_REVIEWER_NAME}", not a real pharmacist.')
+    print("!" * 78)
+
+
+def _print_before_after_summary(
+    before_results: list[DemoResult], after_results: list[DemoResult]
+) -> None:
     def truncate(text: str, width: int) -> str:
         return text if len(text) <= width else text[: width - 1] + "…"
 
-    class_width = max(len("Medication class"), *(len(r.medication_class) for r in results))
+    before_by_class = {r.medication_class: r for r in before_results}
+    after_by_class = {r.medication_class: r for r in after_results}
+
+    class_width = max(len("Medication class"), *(len(c) for c in MEDICATION_CLASSES))
     status_width = CONTENT_STATUS_DISPLAY_WIDTH
-    rendered_width = len("PDF rendered")
 
     header = (
         f"{'Medication class'.ljust(class_width)}  "
-        f"{'Content status'.ljust(status_width)}  "
-        f"{'PDF rendered'.ljust(rendered_width)}"
+        f"{'Before'.ljust(status_width)}  "
+        f"{'After'.ljust(status_width)}"
     )
     print()
     print(header)
     print("-" * len(header))
-    for result in results:
-        rendered = "yes" if result.pdf_rendered else "NO"
+    for medication_class in MEDICATION_CLASSES:
+        before = truncate(before_by_class[medication_class].content_status, status_width)
+        after = truncate(after_by_class[medication_class].content_status, status_width)
         print(
-            f"{result.medication_class.ljust(class_width)}  "
-            f"{truncate(result.content_status, status_width).ljust(status_width)}  "
-            f"{rendered.ljust(rendered_width)}"
+            f"{medication_class.ljust(class_width)}  "
+            f"{before.ljust(status_width)}  "
+            f"{after}"
         )
-        if not result.pdf_rendered:
-            print(f"{' ' * class_width}  -> {result.detail}")
     print()
 
 
 def main() -> int:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    env = _build_demo_env()
     port = _find_free_port()
     base_url = f"http://127.0.0.1:{port}"
 
     print(f"Starting demo server on {base_url} ...")
-    server = _start_server(port)
-    results: list[DemoResult] = []
+    server = _start_server(port, env)
+
+    before_results: list[DemoResult] = []
+    after_results: list[DemoResult] = []
 
     try:
         with httpx.Client(base_url=base_url) as client:
             _wait_for_health(client, server, SERVER_STARTUP_TIMEOUT_SECONDS)
-            print("Server is up. Running fill-event + companion-page for each class...")
-            for medication_class in MEDICATION_CLASSES:
-                results.append(_run_one(client, medication_class))
+            print("Server is up.")
+            print()
+            print(
+                f"=== BEFORE: rendering all {len(MEDICATION_CLASSES)} companion "
+                "pages exactly as originally seeded ==="
+            )
+            before_results = _render_all(client, BEFORE_DIR)
+
+        print()
+        _draft_sample_content(env)
+        _review_all_drafts(env)
+
+        with httpx.Client(base_url=base_url) as client:
+            print()
+            print(
+                f"=== AFTER: re-rendering all {len(MEDICATION_CLASSES)} companion pages ==="
+            )
+            after_results = _render_all(client, AFTER_DIR)
     finally:
         server.terminate()
         try:
@@ -213,10 +319,18 @@ def main() -> int:
             print("--- server output (non-clean shutdown) ---")
             print(server.stdout.read())
 
-    _print_summary(results)
-    print(f"PDFs saved under {OUTPUT_DIR}")
+    _print_before_after_summary(before_results, after_results)
 
-    return 0 if all(r.pdf_rendered for r in results) else 1
+    all_results = before_results + after_results
+    pdf_success_count = sum(1 for r in all_results if r.pdf_rendered)
+    print(
+        f"{pdf_success_count}/{len(all_results)} companion-page PDFs "
+        f"generated successfully ({len(MEDICATION_CLASSES)} classes x before/after)."
+    )
+    print(f"Before-review PDFs: {BEFORE_DIR}")
+    print(f"After-review PDFs:  {AFTER_DIR}")
+
+    return 0 if pdf_success_count == len(all_results) else 1
 
 
 if __name__ == "__main__":

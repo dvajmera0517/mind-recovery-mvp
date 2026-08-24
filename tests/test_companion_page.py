@@ -28,6 +28,11 @@ def test_companion_page_html_metformin_shows_all_populated_fields(
     assert "TRC Healthcare Natural Medicines" in body
     assert DISCLAIMER in body
     assert "Pending pharmacist review" not in body
+    # Human-authored from the start, never drafted/reviewed through the
+    # pipeline — distinct wording from the sample/LLM provenance lines
+    # (no "pharmacist-reviewed" claim tacked on, since nothing was
+    # reviewed here — it was written correctly the first time).
+    assert "Content origin: pharmacist-authored" in body
 
 
 def test_companion_page_html_ppi_shows_pending_for_null_fields(

@@ -72,9 +72,14 @@ https://console.anthropic.com/settings/keys) only if you'll use `--use-llm`
 — the default mode, the main server, and `review_content.py` all need no
 API key at all, just a `REVIEWER_NAME` env var for the reviewer's name (or
 it'll prompt you). Once approved, the companion page shows a provenance
-line distinguishing the two paths — `"Content origin: Sample content
-(hand-written for demo), pharmacist-reviewed"` vs. `"Content origin:
-LLM-drafted (Claude), pharmacist-reviewed"`.
+line — printed on the page itself, not just stored as data — distinguishing
+all three ways content can originate, deliberately worded so they can never
+read as interchangeable:
+
+- `"Content origin: pharmacist-authored"` — metformin only; never went
+  through drafting or review, so no review claim is made about it.
+- `"Content origin: Sample content (hand-written for demo), pharmacist-reviewed"`
+- `"Content origin: LLM-drafted, pharmacist-reviewed"`
 
 ## Run
 
@@ -102,17 +107,33 @@ FDC_API_KEY=<your-key> ANTHROPIC_API_KEY=<your-key> pytest -m integration
 
 ## Demo
 
-Single command to see the whole MVP flow end to end — fires `/fill-event` for
-every medication class in `seed_data.py`, downloads each companion-page PDF
-into `./output/`, and prints a summary table:
+Single command to see the whole MVP flow end to end — the *before/after*
+story of drafting and review, not just a snapshot:
 
 ```bash
 python scripts/demo.py
 ```
 
+1. Renders and saves all five companion pages exactly as originally seeded
+   to `./output/before_review/` — metformin complete-but-unsigned, the
+   other four all showing "Pending pharmacist review".
+2. Drafts sample content (the default, no-API-key path from the section
+   above) for statins, diuretics, ppi, and glp1.
+3. Runs those four drafts through `scripts/review_content.py`
+   non-interactively, approving each as-is, with reviewer name `"Demo
+   Reviewer (not a licensed pharmacist)"` — printed inside loud `!!!!!`
+   banners in the console output specifically so it can't be mistaken for
+   a real review.
+4. Re-renders and saves all five companion pages to `./output/after_review/`
+   — statins/diuretics/ppi/glp1 now fully populated, with the sample-content
+   provenance line on the page.
+5. Prints a before/after `content_status` table for all five classes, and
+   confirms all 10 PDFs (5 classes × before/after) generated successfully.
+
 It starts its own throwaway server on a free port with a scratch database, so
 there's no need to have `uvicorn` already running. If `FDC_API_KEY` isn't set,
-it falls back to USDA's public `DEMO_KEY` automatically.
+it falls back to USDA's public `DEMO_KEY` automatically — the whole demo,
+including the drafting/review steps, needs zero API keys by default.
 
 ## What's real vs. placeholder
 
@@ -139,7 +160,10 @@ sign-off.
 
 This table reflects the data as originally seeded. Running
 `scripts/draft_content.py` + `scripts/review_content.py` (see above) moves a
-class from `PLACEHOLDER` to `llm_drafted_pending_pharmacist_review` and then
-to `approved`/`approved_with_edits` — but the companion page still shows
+class from `PLACEHOLDER` to `sample_content_pending_pharmacist_review` (or
+`llm_drafted_pending_pharmacist_review` with `--use-llm`) and then to
+`approved`/`approved_with_edits` — but the companion page still shows
 "Pending pharmacist review" for everything up through the drafted state,
-regardless of what's actually in the database by then.
+regardless of what's actually in the database by then. `python
+scripts/demo.py` (see the Demo section below) runs through this whole
+progression automatically and shows both ends of it side by side.

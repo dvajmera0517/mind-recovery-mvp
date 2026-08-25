@@ -16,6 +16,7 @@ dependencies = [
     "xhtml2pdf>=0.2.14",
     "python-dotenv>=1.0",
     "anthropic>=1.0",
+    "streamlit>=1.38",
 ]
 
 [project.optional-dependencies]

@@ -11,6 +11,10 @@ pip install -e ".[dev]"
 cp .env.example .env
 ```
 
+(All dependencies, including `streamlit`, live in `pyproject.toml`'s
+`dependencies` — this project never adopted a separate `requirements.txt`,
+per the original step-1 setup choice.)
+
 Edit `.env` and set `FDC_API_KEY` — a free USDA FoodData Central key from
 https://fdc.nal.usda.gov/api-key-signup, or the public `DEMO_KEY` (rate-limited,
 no signup) to try things out. The server enriches `foods_that_may_help` with a
@@ -125,7 +129,45 @@ FDC_API_KEY=<your-key> ANTHROPIC_API_KEY=<your-key> pytest -m integration
 (the Claude one skips itself with a message if `ANTHROPIC_API_KEY` isn't set
 — there's no free/no-signup key for it the way USDA has `DEMO_KEY`)
 
-## Demo
+## Streamlit demo UI
+
+A live "prescription fill simulator" — a thin UI over the real running API,
+nothing more; every result on screen comes from a real HTTP call to
+`POST /simulate-prescription` and `GET /companion-page/{class}`, never from
+logic reimplemented in the UI itself.
+
+```bash
+./run_demo.sh          # macOS/Linux — starts the API + Streamlit together
+.\run_demo.ps1          # Windows PowerShell equivalent
+```
+
+This starts the FastAPI server and the Streamlit app together on one
+command and stops both cleanly on Ctrl+C (falls back to USDA's `DEMO_KEY`
+the same way `scripts/demo.py` does if `FDC_API_KEY` isn't set). Then open
+http://localhost:8501.
+
+- **Preset buttons** for metformin, atorvastatin (statin), furosemide
+  (diuretic), omeprazole (PPI), semaglutide (GLP-1), and amoxicillin (to
+  demonstrate the unsupported-drug case) — plus a free-text field for any
+  other drug name. Both paths call the exact same endpoint.
+- Renders the **actual companion page** fetched live from the backend, with
+  a loud orange "PENDING PHARMACIST REVIEW" banner wrapped around it for
+  anything not yet approved — determined by checking the backend's real
+  rendered output for its own "Pending pharmacist review" text, not by
+  guessing from `content_status` in the UI (metformin's status is neither
+  `approved` nor a pending-review state — it predates the whole
+  draft/review pipeline — so a naive status check would have wrongly
+  banner-flagged it; this was caught and fixed during manual testing).
+- A separate **FDA label reference** panel, explicitly labeled
+  `"FDA label reference — informational only, not the pharmacist-curated
+  content"`.
+- A **Live API calls** panel showing the real RxClass/USDA/openFDA response
+  times from the backend's own `timing_ms`.
+
+To run it against an already-running server instead, or a remote one:
+`SIMULATOR_API_BASE_URL=http://localhost:8000 streamlit run streamlit_app.py`.
+
+## CLI demo
 
 Single command to see the whole MVP flow end to end — the *before/after*
 story of drafting and review, not just a snapshot:

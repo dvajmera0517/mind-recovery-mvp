@@ -57,6 +57,30 @@ scope for this prototype. In that case `usda`/`openfda` in `timing_ms` are
 `null` (not `0`) — the pipeline stops after classification and never
 attempts them.
 
+### `GET /review-queue` / `POST /review-queue/{medication_class}/approve`
+
+The HTTP surface behind pharmacist review — the same operation
+`scripts/review_content.py`'s CLI performs, exposed so any client (the
+Streamlit UI below, or a future real reviewer tool) can list and approve
+pending drafts without touching the database directly.
+
+`GET /review-queue` returns every record whose `content_status` is one of
+the two pending-review states (LLM-drafted or sample-content), including
+its `evidence_excerpt` and `content_origin` so a reviewer can see what a
+draft came from.
+
+`POST /review-queue/{medication_class}/approve` takes a `reviewer_name`
+and an optional `edits` object (any subset of `why_it_matters`,
+`foods_that_may_help`, `supplements_to_discuss`, `talk_to_pharmacist_if`,
+`clinical_source`). Omit `edits` (or send it empty) to approve as-is —
+`content_status` becomes `approved`. Include a field with a different
+value to approve with edits — `content_status` becomes
+`approved_with_edits`, exactly mirroring
+`content_review.approve_record`'s "did anything actually change" check.
+Returns `409` if the record isn't currently pending review, `404` for an
+unknown medication class, `422` for an edit key outside the five
+reviewable fields.
+
 ## Content drafting for statins, diuretics, PPIs, GLP-1
 
 The four still-placeholder classes (see the table below) can each be
@@ -85,11 +109,15 @@ Drafts from the fixed excerpt in `src/mind_recovery_mvp/evidence_excerpts.py`
 — never from general model knowledge. `content_status` becomes
 `"llm_drafted_pending_pharmacist_review"`.
 
-Either way:
+Either way, review it before it can go live — either from the CLI:
 
 ```bash
 python scripts/review_content.py           # approve, edit, or skip each draft
 ```
+
+or from the Streamlit demo's **Review Queue** tab (see below), which talks
+to the same `GET /review-queue` / `POST /review-queue/{class}/approve`
+endpoints and has exactly the same effect.
 
 Set `ANTHROPIC_API_KEY` in `.env` (get one at
 https://console.anthropic.com/settings/keys) only if you'll use `--use-llm`
@@ -163,6 +191,16 @@ http://localhost:8501.
   content"`.
 - A **Live API calls** panel showing the real RxClass/USDA/openFDA response
   times from the backend's own `timing_ms`.
+
+A second **Review Queue** tab lists every record pending pharmacist
+review (via `GET /review-queue`) and lets a reviewer approve each one —
+as-is, or after editing any of the five reviewable fields — via
+`POST /review-queue/{class}/approve`. This is the browser-based
+counterpart to `scripts/review_content.py`'s interactive CLI: same
+endpoint-level operation, same effect on `content_status`, just from a
+form instead of terminal prompts. A reviewer name is required before
+approving (recorded as `reviewed_by`); leaving a field blank when editing
+clears it to `null`, mirroring the CLI's `'null'` sentinel.
 
 To run it against an already-running server instead, or a remote one:
 `SIMULATOR_API_BASE_URL=http://localhost:8000 streamlit run streamlit_app.py`.

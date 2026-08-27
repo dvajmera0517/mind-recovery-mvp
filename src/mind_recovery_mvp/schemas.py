@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class FillEventRequest(BaseModel):
@@ -79,6 +79,25 @@ class SimulatePrescriptionResponse(BaseModel):
     recommendation: Recommendation | None
     fda_label_reference: FdaLabelReference | None
     timing_ms: TimingBreakdownMs
+
+
+class ReviewQueueItem(NutrientContentResponse):
+    evidence_excerpt: str | None
+    content_origin: str | None
+    reviewed_by: str | None
+    reviewed_at: datetime | None
+
+
+class ReviewQueueResponse(BaseModel):
+    items: list[ReviewQueueItem]
+
+
+class ReviewApprovalRequest(BaseModel):
+    reviewer_name: str = Field(min_length=1)
+    # Only fields the reviewer actually changed — omit a field entirely
+    # to keep its current value, same "blank to keep" contract
+    # scripts/review_content.py uses. None clears a field to null.
+    edits: dict[str, str | list[str] | None] | None = None
 
 
 class MedicationClassMetrics(BaseModel):
